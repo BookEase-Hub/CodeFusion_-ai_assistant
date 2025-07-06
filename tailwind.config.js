@@ -72,6 +72,9 @@ module.exports = {
         "accordion-up": "accordion-up 0.2s ease-out",
       },
       fontFamily: {
+        sans: ["var(--font-inter)", "Inter", "sans-serif"],
+        montserrat: ["var(--font-montserrat)", "Montserrat", "sans-serif"],
+        source: ["var(--font-source-code-pro)", "Source Code Pro", "monospace"],
         mono: ["Fira Code", "Cascadia Code", "JetBrains Mono", "monospace"],
       },
     },
