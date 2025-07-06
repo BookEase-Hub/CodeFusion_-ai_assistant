@@ -75,6 +75,7 @@ module.exports = {
         sans: ["var(--font-inter)", "Inter", "sans-serif"],
         montserrat: ["var(--font-montserrat)", "Montserrat", "sans-serif"],
         source: ["var(--font-source-code-pro)", "Source Code Pro", "monospace"],
+        "source-code-pro": ["var(--font-source-code-pro)", "Source Code Pro", "monospace"],
         mono: ["Fira Code", "Cascadia Code", "JetBrains Mono", "monospace"],
       },
     },
