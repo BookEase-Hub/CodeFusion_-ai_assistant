@@ -3,18 +3,10 @@
 import * as React from "react"
 import { useState, useEffect, useRef } from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
-import { motion, AnimatePresence } from "framer-motion"
 import {
-  Send,
-  Cpu,
-  User,
   Copy,
-  Check,
   Sparkles,
-  Code,
   FileCode2,
-  Braces,
-  Loader2,
   FileIcon,
   Plus,
   PlusSquare,
@@ -62,9 +54,6 @@ import {
   GitBranch,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -79,8 +68,14 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import Editor from "@monaco-editor/react"
 import mermaid from "mermaid"
+
+import CodeMirror from "@uiw/react-codemirror"
+import { vscodeDark } from "@uiw/codemirror-theme-vscode"
+import { javascript } from "@codemirror/lang-javascript"
+import { json } from "@codemirror/lang-json"
+import { html } from "@codemirror/lang-html"
+import { python } from "@codemirror/lang-python"
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -528,7 +523,7 @@ const ScrollArea = React.forwardRef<
 ))
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
-// CodeEditor Component
+// CodeEditor Component – CodeMirror-based (no WASM)
 function CodeEditor({
   value,
   language,
@@ -542,28 +537,40 @@ function CodeEditor({
   onChange?: (value: string) => void
   readOnly?: boolean
 }) {
+  /* Map language prop to CodeMirror extensions */
+  const extensions = React.useMemo(() => {
+    switch (language?.toLowerCase()) {
+      case "js":
+      case "javascript":
+      case "tsx":
+      case "typescript":
+        return [javascript({ jsx: true, typescript: true })]
+      case "json":
+        return [json()]
+      case "html":
+        return [html()]
+      case "python":
+        return [python()]
+      default:
+        return [] // fallback – plain‐text
+    }
+  }, [language])
+
   return (
-    <Editor
-      height={height}
-      defaultLanguage={language}
+    <CodeMirror
       value={value}
-      onChange={onChange}
-      options={{
-        readOnly,
-        minimap: { enabled: false },
-        scrollBeyondLastLine: false,
-        fontSize: 14,
-        lineNumbers: "on",
-        theme: "vs-dark",
-        automaticLayout: true,
-        wordWrap: "on",
-        tabSize: 2,
-        insertSpaces: true,
-        renderWhitespace: "selection",
-        renderControlCharacters: true,
-        fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace",
-        fontLigatures: true,
+      height={height}
+      theme={vscodeDark}
+      extensions={extensions}
+      editable={!readOnly}
+      basicSetup={{
+        lineNumbers: true,
+        highlightActiveLine: true,
+        highlightActiveLineGutter: true,
+        foldGutter: true,
       }}
+      onChange={(val) => onChange?.(val)}
+      style={{ fontSize: 14, fontFamily: `"Fira Code", "JetBrains Mono", monospace` }}
     />
   )
 }
@@ -1532,7 +1539,7 @@ function ProblemsPanel() {
 }
 
 // VS Code Editor Component
-export function VSCodeEditor() {
+export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) => void }) {
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const [tabs, setTabs] = useState<EditorTab[]>([])
   const [showExplorer, setShowExplorer] = useState(true)
@@ -1579,7 +1586,34 @@ export function VSCodeEditor() {
 
   const handleContentChange = (value: string, tabId: string) => {
     setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, content: value, isDirty: true } : tab)))
+    onCodeChange?.(value)
   }
+
+  const insertCodeIntoEditor = (code: string, language = "javascript") => {
+    if (activeTab) {
+      // Insert into current tab
+      const currentTab = tabs.find((tab) => tab.id === activeTab)
+      if (currentTab) {
+        const newContent = currentTab.content + "\n\n" + code
+        handleContentChange(newContent, activeTab)
+      }
+    } else {
+      // Create new tab with the code
+      const newTab: EditorTab = {
+        id: `tab-${Date.now()}`,
+        name: `ai-generated.${language === "python" ? "py" : "js"}`,
+        content: code,
+        language: language,
+      }
+      setTabs([...tabs, newTab])
+      setActiveTab(newTab.id)
+    }
+  }
+
+  // Expose insertCodeIntoEditor to parent component
+  React.useImperativeHandle(React.useRef(), () => ({
+    insertCode: insertCodeIntoEditor,
+  }))
 
   const toggleSidebar = (icon: string) => {
     if (icon === "explorer") {
@@ -1895,19 +1929,19 @@ export function VSCodeEditor() {
   )
 }
 
-// Main AI Assistant Component
-export function AIAssistant() {
+// Chat Panel Component
+function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: string) => void }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
-      content: "Hi there! I'm your AI coding assistant. How can I help you today?",
+      content:
+        "Hi! I'm your AI coding assistant. I can help you write, debug, and optimize code. What would you like to work on?",
     },
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("chat")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { requireAuth } = useRequireAuth()
 
@@ -1919,13 +1953,161 @@ export function AIAssistant() {
     scrollToBottom()
   }, [messages])
 
-  const handleSend = () => {
-    if (!requireAuth("the AI Assistant chat")) {
-      return
-    }
+  const generateAIResponse = (userInput: string): Message => {
+    const lowerInput = userInput.toLowerCase()
 
+    if (lowerInput.includes("function") || lowerInput.includes("create") || lowerInput.includes("write")) {
+      if (lowerInput.includes("react") || lowerInput.includes("component")) {
+        return {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Here's a React component based on your request:",
+          code: {
+            language: "javascript",
+            value: `import React, { useState } from 'react';
+
+function MyComponent() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div className="component">
+      <h2>My Component</h2>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>
+        Increment
+      </button>
+      <button onClick={() => setCount(count - 1)}>
+        Decrement
+      </button>
+    </div>
+  );
+}
+
+export default MyComponent;`,
+          },
+        }
+      } else if (lowerInput.includes("python")) {
+        return {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Here's a Python function for you:",
+          code: {
+            language: "python",
+            value: `def process_data(data):
+    """
+    Process and analyze data
+    """
+    if not data:
+        return None
+    
+    # Process the data
+    processed = []
+    for item in data:
+        if isinstance(item, (int, float)):
+            processed.append(item * 2)
+        else:
+            processed.append(str(item).upper())
+    
+    return processed
+
+# Example usage
+sample_data = [1, 2, "hello", 3.14, "world"]
+result = process_data(sample_data)
+print(result)`,
+          },
+        }
+      } else {
+        return {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Here's a JavaScript function that might help:",
+          code: {
+            language: "javascript",
+            value: `function processArray(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return [];
+  }
+  
+  return arr
+    .filter(item => item !== null && item !== undefined)
+    .map(item => {
+      if (typeof item === 'string') {
+        return item.trim().toLowerCase();
+      }
+      if (typeof item === 'number') {
+        return Math.round(item * 100) / 100;
+      }
+      return item;
+    })
+    .sort();
+}
+
+// Example usage
+const data = [3.14159, "  Hello  ", null, "WORLD", 2.71828];
+const result = processArray(data);
+console.log(result);`,
+          },
+        }
+      }
+    } else if (lowerInput.includes("debug") || lowerInput.includes("fix") || lowerInput.includes("error")) {
+      return {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "I've analyzed your code and found a potential issue. Here's a suggestion to fix it:",
+        code: {
+          language: "javascript",
+          value: `// Original code
+function calculateArea(width, height) {
+  return width * height;
+}
+
+// Fixed code
+function calculateArea(width, height) {
+  if (typeof width !== 'number' || typeof height !== 'number') {
+    return 'Invalid input. Width and height must be numbers.';
+  }
+  return width * height;
+}`,
+        },
+      }
+    } else if (lowerInput.includes("optimize") || lowerInput.includes("performance") || lowerInput.includes("faster")) {
+      return {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Here's an optimized version of your code for better performance:",
+        code: {
+          language: "javascript",
+          value: `// Original code
+function slowFunction(arr) {
+  let result = [];
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] % 2 === 0) {
+      result.push(arr[i]);
+    }
+  }
+  return result;
+}
+
+// Optimized code
+function fastFunction(arr) {
+  return arr.filter(num => num % 2 === 0);
+}`,
+        },
+      }
+    } else {
+      return {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content:
+          "I can help you with coding tasks, debugging, and optimization. Please provide more specific instructions or code snippets.",
+      }
+    }
+  }
+
+  const sendMessage = async () => {
     if (!input.trim()) return
 
+    setIsLoading(true)
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -1934,232 +2116,128 @@ export function AIAssistant() {
 
     setMessages((prev) => [...prev, userMessage])
     setInput("")
-    setIsLoading(true)
 
+    // Simulate AI response (replace with actual API call later)
     setTimeout(() => {
-      let aiResponse: Message
-
-      if (input.toLowerCase().includes("function") || input.toLowerCase().includes("code")) {
-        aiResponse = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: "Here's an optimized version of the function you requested:",
-          code: {
-            language: "javascript",
-            value: `function fetchUserData(userId) {
-  if (!userId || typeof userId !== 'string') {
-    throw new Error('Invalid user ID');
-  }
-
-  return fetch(\`/api/users/\${userId}\`)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(\`HTTP error! status: \${response.status}\`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      return {
-        ...data,
-        fullName: \`\${data.firstName} \${data.lastName}\`,
-        isActive: Boolean(data.status === 'active')
-      };
-    })
-    .catch(error => {
-      console.error('Error fetching user data:', error);
-      throw error;
-    });
-}`,
-          },
-        }
-      } else {
-        aiResponse = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content:
-            "I can help with that! Would you like me to generate some code for this task or explain the concept in more detail?",
-        }
-      }
-
+      const aiResponse = generateAIResponse(input)
       setMessages((prev) => [...prev, aiResponse])
       setIsLoading(false)
     }, 1500)
   }
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
+  const copyCode = (code: string, id: string) => {
+    navigator.clipboard.writeText(code)
     setCopied(id)
-    setTimeout(() => setCopied(null), 2000)
+    setTimeout(() => {
+      setCopied(null)
+    }, 2000)
+  }
+
+  const handleInsert = (code: string, language: string) => {
+    onInsertCode(code, language)
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)]">
-      <div className="flex flex-col gap-2 mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">AI Assistant</h1>
-        <p className="text-muted-foreground">Get help with coding, debugging, and best practices</p>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 bg-background">
-          <TabsTrigger value="chat">Chat Assistant</TabsTrigger>
-          <TabsTrigger value="editor">Code Editor</TabsTrigger>
-          <TabsTrigger value="architecture">VS Code Architecture</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
-          <Card className="flex-1 flex flex-col">
-            <CardHeader>
-              <CardTitle>Chat with CodeFusion AI</CardTitle>
-              <CardDescription>Powered by advanced language models for coding assistance</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-              <AnimatePresence>
-                {messages.map((message) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div className={`flex gap-3 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
-                      <div
-                        className={`rounded-full p-2 h-8 w-8 flex items-center justify-center ${
-                          message.role === "assistant" ? "bg-primary/20 text-primary" : "bg-secondary/20 text-secondary"
-                        }`}
-                      >
-                        {message.role === "assistant" ? <Cpu className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                      </div>
-                      <div
-                        className={`space-y-2 rounded-lg p-4 ${
-                          message.role === "assistant" ? "bg-muted" : "bg-primary text-primary-foreground"
-                        }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        {message.code && (
-                          <div className="relative mt-2 rounded-md overflow-hidden border">
-                            <div className="flex items-center justify-between bg-muted-foreground/10 px-4 py-2">
-                              <Badge
-                                variant="outline"
-                                className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                              >
-                                {message.code.language}
-                              </Badge>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => handleCopy(message.code!.value, message.id)}
-                                    >
-                                      {copied === message.id ? (
-                                        <Check className="h-4 w-4" />
-                                      ) : (
-                                        <Copy className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{copied === message.id ? "Copied!" : "Copy code"}</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                            <CodeEditor
-                              value={message.code.value}
-                              language={message.code.language}
-                              height="200px"
-                              readOnly
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-                {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-start"
-                  >
-                    <div className="flex gap-3 max-w-[80%]">
-                      <div className="rounded-full p-2 h-8 w-8 flex items-center justify-center bg-primary/20 text-primary">
-                        <Cpu className="h-4 w-4" />
-                      </div>
-                      <div className="space-y-2 rounded-lg p-4 bg-muted">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <p className="text-sm">Thinking...</p>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <div ref={messagesEndRef} />
-            </CardContent>
-            <CardFooter className="border-t p-4">
-              <form
-                className="flex w-full items-center space-x-2"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleSend()
-                }}
-              >
-                <Input
-                  placeholder="Ask about code, debugging, or best practices..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  className="flex-1"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!input.trim() || isLoading}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
-            </CardFooter>
-          </Card>
-
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold mb-3">Suggested Prompts</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {[
-                { icon: Code, text: "Optimize this function for performance" },
-                { icon: Braces, text: "Explain how async/await works in JavaScript" },
-                { icon: FileCode2, text: "Generate unit tests for my React component" },
-                { icon: Sparkles, text: "Suggest improvements for my API design" },
-              ].map((prompt, i) => (
-                <Button
-                  key={i}
-                  variant="outline"
-                  className="justify-start h-auto py-3 bg-transparent"
-                  onClick={() => {
-                    if (requireAuth("suggested AI prompts")) {
-                      setInput(prompt.text)
-                    }
-                  }}
-                >
-                  <prompt.icon className="mr-2 h-4 w-4 text-primary" />
-                  <span className="text-sm">{prompt.text}</span>
-                </Button>
-              ))}
+    <div className="flex flex-col h-full bg-[#252526] text-white">
+      <div className="flex-1 overflow-y-auto p-4">
+        {messages.map((message) => (
+          <div key={message.id} className={`mb-4 ${message.role === "user" ? "text-right" : ""}`}>
+            <div
+              className={`inline-block rounded-lg p-3 max-w-[80%] break-words ${
+                message.role === "user" ? "bg-[#3c3c3c]" : "bg-[#1e1e1e]"
+              }`}
+            >
+              {message.content}
             </div>
+            {message.code && (
+              <div className="relative mt-2 rounded-md overflow-hidden">
+                <CodeEditor value={message.code.value} language={message.code.language} height="200px" readOnly />
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyCode(message.code!.value, message.id)}
+                    disabled={copied === message.id}
+                  >
+                    {copied === message.id ? <Clipboard className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleInsert(message.code!.value, message.code!.language)}
+                  >
+                    <FileCode2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="editor" className="flex-1 flex flex-col mt-0 h-full">
-          <VSCodeEditor />
-        </TabsContent>
-
-        <TabsContent value="architecture" className="flex-1 flex flex-col mt-0">
-          <VSCodeArchitecture />
-        </TabsContent>
-      </Tabs>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="p-4 border-t border-[#3c3c3c] bg-[#1e1e1e]">
+        <div className="flex items-center">
+          <input
+            type="text"
+            className="flex-1 bg-[#333333] text-white border border-[#3c3c3c] rounded-md py-2 px-3 outline-none"
+            placeholder="Ask me anything..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                sendMessage()
+              }
+            }}
+          />
+          <Button variant="primary" className="ml-2" onClick={sendMessage} disabled={isLoading}>
+            {isLoading ? "Sending..." : "Send"}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
+
+// ⬇️ append to the bottom of the file
+// -----------------------------------------------------------------
+/**
+ * Top-level AI Assistant screen that combines:
+ *  – Code editor (with VS-Code-like UX)
+ *  – Chat panel (AI prompt / response)
+ *  – Architecture diagrams
+ */
+export function AIAssistant() {
+  const editorRef = React.useRef<{
+    insertCode: (code: string, language?: string) => void
+  } | null>(null)
+
+  // helper passed to ChatPanel so the AI can drop code into editor
+  const handleInsertCode = React.useCallback((code: string, language = "javascript") => {
+    editorRef.current?.insertCode(code, language)
+  }, [])
+
+  return (
+    <div className="grid lg:grid-cols-12 gap-4 h-[calc(100vh-8rem)]">
+      <div className="lg:col-span-8 h-full">
+        <VSCodeEditor
+          ref={editorRef as any} // satisfy TS
+          onCodeChange={() => {
+            /* TODO: dispatch to global store for real-time sync */
+          }}
+        />
+      </div>
+
+      <div className="lg:col-span-4 flex flex-col h-full">
+        <div className="flex-1 overflow-hidden border rounded-md">
+          <ChatPanel onInsertCode={handleInsertCode} />
+        </div>
+        <div className="mt-4 h-[35%]">
+          <VSCodeArchitecture />
+        </div>
+      </div>
+    </div>
+  )
+}
+// default export for backwards compatibility
+export default AIAssistant
+// -----------------------------------------------------------------
