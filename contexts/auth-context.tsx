@@ -2,222 +2,173 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import {
-  CognitoUser,
-  AuthenticationDetails,
-  CognitoUserPool,
-  type ICognitoUserAttributeData,
-} from "amazon-cognito-identity-js"
+
+// Mock user interface for development
+interface User {
+  id: string
+  name: string
+  email: string
+  avatar?: string
+  bio?: string
+  role: string
+  subscriptionPlan: "free" | "premium"
+  subscriptionStatus: "active" | "trial" | "expired"
+  trialEndsAt?: string
+}
 
 interface AuthContextProps {
-  user: CognitoUser | null
-  login: (username: string, password: string) => Promise<void>
-  logout: () => void
-  signUp: (username: string, password: string, attributes: ICognitoUserAttributeData[]) => Promise<void>
-  verify: (username: string, code: string) => Promise<void>
-  forgotPassword: (username: string) => Promise<void>
-  confirmPassword: (username: string, newPassword: string, code: string) => Promise<void>
+  user: User | null
+  isAuthenticated: boolean
   isLoading: boolean
+  login: (email: string, password: string) => Promise<void>
+  signup: (name: string, email: string, password: string) => Promise<void>
+  logout: () => void
+  updateProfile: (data: { name: string; email: string; bio?: string }) => Promise<void>
+  updateAvatar: (avatar: string) => Promise<void>
+  updateSubscription: (plan: "free" | "premium") => Promise<void>
+  resetPassword: (email: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined)
 
 interface AuthProviderProps {
   children: ReactNode
-  userPoolId: string
-  clientId: string
 }
 
-const AuthProvider: React.FC<AuthProviderProps> = ({ children, userPoolId, clientId }) => {
-  const [user, setUser] = useState<CognitoUser | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const userPool = new CognitoUserPool({
-      UserPoolId: userPoolId,
-      ClientId: clientId,
-    })
-
-    const cognitoUser = userPool.getCurrentUser()
-
-    if (cognitoUser) {
-      cognitoUser.getSession((err: any, session: any) => {
-        if (err) {
-          console.error(err)
-          setUser(null)
-        } else {
-          setUser(cognitoUser)
+    // Check for existing session
+    const checkAuth = async () => {
+      try {
+        const savedUser = localStorage.getItem("user")
+        if (savedUser) {
+          setUser(JSON.parse(savedUser))
         }
-      })
-    } else {
-      setUser(null)
+      } catch (error) {
+        console.error("Auth check error:", error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [clientId, userPoolId])
 
-  const login = (username: string, password: string) => {
-    return new Promise<void>((resolve, reject) => {
-      setIsLoading(true)
-      const userPool = new CognitoUserPool({
-        UserPoolId: userPoolId,
-        ClientId: clientId,
-      })
+    checkAuth()
+  }, [])
 
-      const cognitoUser = new CognitoUser({
-        Username: username,
-        Pool: userPool,
-      })
+  const login = async (email: string, password: string) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      const authenticationDetails = new AuthenticationDetails({
-        Username: username,
-        Password: password,
-      })
+      const mockUser: User = {
+        id: "1",
+        name: "John Doe",
+        email: email,
+        avatar: "",
+        bio: "Software Developer",
+        role: "developer",
+        subscriptionPlan: "free",
+        subscriptionStatus: "trial",
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }
 
-      cognitoUser.authenticateUser(authenticationDetails, {
-        onSuccess: (result) => {
-          console.log("login success:", result)
-          setUser(cognitoUser)
-          setIsLoading(false)
-          resolve()
-        },
-        onFailure: (err) => {
-          console.error("login failure:", err)
-          setIsLoading(false)
-          reject(err)
-        },
-      })
-    })
+      setUser(mockUser)
+      localStorage.setItem("user", JSON.stringify(mockUser))
+    } catch (error) {
+      throw new Error("Login failed")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const signup = async (name: string, email: string, password: string) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      const mockUser: User = {
+        id: "1",
+        name: name,
+        email: email,
+        avatar: "",
+        bio: "",
+        role: "developer",
+        subscriptionPlan: "free",
+        subscriptionStatus: "trial",
+        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+
+      setUser(mockUser)
+      localStorage.setItem("user", JSON.stringify(mockUser))
+    } catch (error) {
+      throw new Error("Signup failed")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const logout = () => {
-    const userPool = new CognitoUserPool({
-      UserPoolId: userPoolId,
-      ClientId: clientId,
-    })
+    setUser(null)
+    localStorage.removeItem("user")
+  }
 
-    const cognitoUser = userPool.getCurrentUser()
+  const updateProfile = async (data: { name: string; email: string; bio?: string }) => {
+    if (!user) return
 
-    if (cognitoUser) {
-      cognitoUser.signOut()
-      setUser(null)
+    const updatedUser = { ...user, ...data }
+    setUser(updatedUser)
+    localStorage.setItem("user", JSON.stringify(updatedUser))
+  }
+
+  const updateAvatar = async (avatar: string) => {
+    if (!user) return
+
+    const updatedUser = { ...user, avatar }
+    setUser(updatedUser)
+    localStorage.setItem("user", JSON.stringify(updatedUser))
+  }
+
+  const updateSubscription = async (plan: "free" | "premium") => {
+    if (!user) return
+
+    const updatedUser = {
+      ...user,
+      subscriptionPlan: plan,
+      subscriptionStatus: plan === "premium" ? "active" : "trial",
     }
+    setUser(updatedUser)
+    localStorage.setItem("user", JSON.stringify(updatedUser))
   }
 
-  const signUp = (username: string, password: string, attributes: ICognitoUserAttributeData[]) => {
-    return new Promise<void>((resolve, reject) => {
-      const userPool = new CognitoUserPool({
-        UserPoolId: userPoolId,
-        ClientId: clientId,
-      })
-
-      userPool.signUp(username, password, attributes, [], (err, result) => {
-        if (err) {
-          console.error(err)
-          reject(err)
-        } else {
-          console.log("sign up result", result)
-          resolve()
-        }
-      })
-    })
-  }
-
-  const verify = (username: string, code: string) => {
-    return new Promise<void>((resolve, reject) => {
-      const userPool = new CognitoUserPool({
-        UserPoolId: userPoolId,
-        ClientId: clientId,
-      })
-
-      const cognitoUser = new CognitoUser({
-        Username: username,
-        Pool: userPool,
-      })
-
-      cognitoUser.confirmRegistration(code, true, (err, result) => {
-        if (err) {
-          console.error(err)
-          reject(err)
-        } else {
-          console.log("verify result", result)
-          resolve()
-        }
-      })
-    })
-  }
-
-  const forgotPassword = (username: string) => {
-    return new Promise<void>((resolve, reject) => {
-      const userPool = new CognitoUserPool({
-        UserPoolId: userPoolId,
-        ClientId: clientId,
-      })
-
-      const cognitoUser = new CognitoUser({
-        Username: username,
-        Pool: userPool,
-      })
-
-      cognitoUser.forgotPassword({
-        onSuccess: (data) => {
-          console.log("forgot password success", data)
-          resolve()
-        },
-        onFailure: (err) => {
-          console.error("forgot password failure", err)
-          reject(err)
-        },
-      })
-    })
-  }
-
-  const confirmPassword = (username: string, newPassword: string, code: string) => {
-    return new Promise<void>((resolve, reject) => {
-      const userPool = new CognitoUserPool({
-        UserPoolId: userPoolId,
-        ClientId: clientId,
-      })
-
-      const cognitoUser = new CognitoUser({
-        Username: username,
-        Pool: userPool,
-      })
-
-      cognitoUser.confirmPassword(code, newPassword, {
-        onSuccess: (data) => {
-          console.log("confirm password success", data)
-          resolve()
-        },
-        onFailure: (err) => {
-          console.error("confirm password failure", err)
-          reject(err)
-        },
-      })
-    })
+  const resetPassword = async (email: string) => {
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000))
   }
 
   const value: AuthContextProps = {
     user,
-    login,
-    logout,
-    signUp,
-    verify,
-    forgotPassword,
-    confirmPassword,
+    isAuthenticated: !!user,
     isLoading,
+    login,
+    signup,
+    logout,
+    updateProfile,
+    updateAvatar,
+    updateSubscription,
+    resetPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-const useAuth = () => {
+export const useAuth = () => {
   const context = useContext(AuthContext)
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context
 }
-
-// -------------------------------------------------------------
-// re-exports so the module exposes the named symbols v0 expects
-// -------------------------------------------------------------
-export { AuthProvider, useAuth }
