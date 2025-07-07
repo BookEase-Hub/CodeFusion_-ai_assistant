@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { AppLayout } from "@/components/app-layout"
 import { Dashboard } from "@/components/dashboard"
 
-export default function Home() {
+export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 

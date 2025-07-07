@@ -55,6 +55,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
   h1,
   h2,
@@ -62,7 +63,7 @@
   h4,
   h5,
   h6 {
-    @apply font-montserrat font-bold;
+    @apply font-bold;
   }
   p,
   span,
@@ -72,12 +73,12 @@
   }
   code,
   pre {
-    @apply font-source-code-pro;
+    @apply font-mono;
   }
 }
 
 .code-editor {
-  font-family: var(--font-source-code-pro);
+  font-family: "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
 }
 
 .animate-pulse-slow {
@@ -108,4 +109,34 @@
   100% {
     transform: translateY(0px);
   }
+}
+
+/* Smooth transitions for better UX */
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Focus styles for better accessibility */
+.focus-visible:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }

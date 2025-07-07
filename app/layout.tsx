@@ -1,44 +1,31 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Montserrat, Source_Code_Pro } from "next/font/google"
+import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/auth-context"
 import { Toaster } from "@/components/ui/toaster"
+import AppLayout from "@/components/app-layout"
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-})
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-montserrat",
-  weight: ["700"],
-})
-
-const sourceCodePro = Source_Code_Pro({
-  subsets: ["latin"],
-  variable: "--font-source-code-pro",
-})
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "CodeFusion - AI-Powered Coding Assistant",
-  description: "A modern, AI-powered coding assistant for developers, engineers, and tech enthusiasts",
+  title: "CodeFusion - AI-Powered Development Platform",
+  description: "Your intelligent coding companion for seamless development",
     generator: 'v0.dev'
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${montserrat.variable} ${sourceCodePro.variable} font-sans`}>
+      <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            {children}
+            <AppLayout>{children}</AppLayout>
             <Toaster />
           </AuthProvider>
         </ThemeProvider>

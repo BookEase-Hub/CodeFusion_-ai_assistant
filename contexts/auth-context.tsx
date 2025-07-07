@@ -2,8 +2,9 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { useRouter } from "next/navigation"
 
-// Mock user interface for development
+// User interface for the application
 interface User {
   id: string
   name: string
@@ -14,6 +15,7 @@ interface User {
   subscriptionPlan: "free" | "premium"
   subscriptionStatus: "active" | "trial" | "expired"
   trialEndsAt?: string
+  createdAt: string
 }
 
 interface AuthContextProps {
@@ -38,17 +40,34 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    // Check for existing session
+    // Check for existing session on app load
     const checkAuth = async () => {
       try {
-        const savedUser = localStorage.getItem("user")
-        if (savedUser) {
-          setUser(JSON.parse(savedUser))
+        const savedUser = localStorage.getItem("codefusion_user")
+        const sessionToken = localStorage.getItem("codefusion_token")
+
+        if (savedUser && sessionToken) {
+          const userData = JSON.parse(savedUser)
+          // Verify token is still valid (simple check)
+          const tokenExpiry = localStorage.getItem("codefusion_token_expiry")
+          if (tokenExpiry && new Date().getTime() < Number.parseInt(tokenExpiry)) {
+            setUser(userData)
+          } else {
+            // Token expired, clear storage
+            localStorage.removeItem("codefusion_user")
+            localStorage.removeItem("codefusion_token")
+            localStorage.removeItem("codefusion_token_expiry")
+          }
         }
       } catch (error) {
         console.error("Auth check error:", error)
+        // Clear corrupted data
+        localStorage.removeItem("codefusion_user")
+        localStorage.removeItem("codefusion_token")
+        localStorage.removeItem("codefusion_token_expiry")
       } finally {
         setIsLoading(false)
       }
@@ -60,25 +79,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Simulate API call with realistic delay
+      await new Promise((resolve) => setTimeout(resolve, 800))
 
+      // Simple validation for demo
+      if (!email || !password) {
+        throw new Error("Email and password are required")
+      }
+
+      if (password.length < 6) {
+        throw new Error("Password must be at least 6 characters")
+      }
+
+      // Create mock user based on email
       const mockUser: User = {
-        id: "1",
-        name: "John Doe",
+        id: Math.random().toString(36).substr(2, 9),
+        name: email.split("@")[0].charAt(0).toUpperCase() + email.split("@")[0].slice(1),
         email: email,
         avatar: "",
-        bio: "Software Developer",
+        bio: "Welcome to CodeFusion!",
         role: "developer",
         subscriptionPlan: "free",
         subscriptionStatus: "trial",
-        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
       }
 
+      // Generate session token
+      const sessionToken = Math.random().toString(36).substr(2, 15)
+      const tokenExpiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000 // 7 days
+
+      // Store user data and session
+      localStorage.setItem("codefusion_user", JSON.stringify(mockUser))
+      localStorage.setItem("codefusion_token", sessionToken)
+      localStorage.setItem("codefusion_token_expiry", tokenExpiry.toString())
+
       setUser(mockUser)
-      localStorage.setItem("user", JSON.stringify(mockUser))
+
+      // Redirect to dashboard
+      router.push("/")
     } catch (error) {
-      throw new Error("Login failed")
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -87,66 +128,129 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Simulate API call
+      // Simulate API call with realistic delay
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      const mockUser: User = {
-        id: "1",
-        name: name,
-        email: email,
+      // Validation
+      if (!name || !email || !password) {
+        throw new Error("All fields are required")
+      }
+
+      if (password.length < 6) {
+        throw new Error("Password must be at least 6 characters")
+      }
+
+      if (!/\S+@\S+\.\S+/.test(email)) {
+        throw new Error("Please enter a valid email address")
+      }
+
+      // Create new user
+      const newUser: User = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
         avatar: "",
         bio: "",
         role: "developer",
         subscriptionPlan: "free",
         subscriptionStatus: "trial",
-        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
       }
 
-      setUser(mockUser)
-      localStorage.setItem("user", JSON.stringify(mockUser))
+      // Generate session token
+      const sessionToken = Math.random().toString(36).substr(2, 15)
+      const tokenExpiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000 // 7 days
+
+      // Store user data and session
+      localStorage.setItem("codefusion_user", JSON.stringify(newUser))
+      localStorage.setItem("codefusion_token", sessionToken)
+      localStorage.setItem("codefusion_token_expiry", tokenExpiry.toString())
+
+      setUser(newUser)
+
+      // Redirect to dashboard
+      router.push("/")
     } catch (error) {
-      throw new Error("Signup failed")
+      throw error
     } finally {
       setIsLoading(false)
     }
   }
 
   const logout = () => {
+    // Clear all stored data
+    localStorage.removeItem("codefusion_user")
+    localStorage.removeItem("codefusion_token")
+    localStorage.removeItem("codefusion_token_expiry")
+
     setUser(null)
-    localStorage.removeItem("user")
+    router.push("/login")
   }
 
   const updateProfile = async (data: { name: string; email: string; bio?: string }) => {
     if (!user) return
 
-    const updatedUser = { ...user, ...data }
-    setUser(updatedUser)
-    localStorage.setItem("user", JSON.stringify(updatedUser))
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const updatedUser = { ...user, ...data }
+      setUser(updatedUser)
+      localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
+    } catch (error) {
+      throw new Error("Failed to update profile")
+    }
   }
 
   const updateAvatar = async (avatar: string) => {
     if (!user) return
 
-    const updatedUser = { ...user, avatar }
-    setUser(updatedUser)
-    localStorage.setItem("user", JSON.stringify(updatedUser))
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const updatedUser = { ...user, avatar }
+      setUser(updatedUser)
+      localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
+    } catch (error) {
+      throw new Error("Failed to update avatar")
+    }
   }
 
   const updateSubscription = async (plan: "free" | "premium") => {
     if (!user) return
 
-    const updatedUser = {
-      ...user,
-      subscriptionPlan: plan,
-      subscriptionStatus: plan === "premium" ? "active" : "trial",
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      const updatedUser = {
+        ...user,
+        subscriptionPlan: plan,
+        subscriptionStatus: plan === "premium" ? "active" : "trial",
+      }
+      setUser(updatedUser)
+      localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
+    } catch (error) {
+      throw new Error("Failed to update subscription")
     }
-    setUser(updatedUser)
-    localStorage.setItem("user", JSON.stringify(updatedUser))
   }
 
   const resetPassword = async (email: string) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      if (!/\S+@\S+\.\S+/.test(email)) {
+        throw new Error("Please enter a valid email address")
+      }
+
+      // In a real app, this would send a reset email
+      console.log("Password reset email sent to:", email)
+    } catch (error) {
+      throw error
+    }
   }
 
   const value: AuthContextProps = {
