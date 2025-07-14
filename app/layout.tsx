@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/auth-context"
+import { AppStateProvider } from "@/contexts/app-state-context"
 import { Toaster } from "@/components/ui/toaster"
 import AppLayout from "@/components/app-layout"
 
@@ -25,8 +26,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            <AppLayout>{children}</AppLayout>
-            <Toaster />
+            <AppStateProvider>
+              <AppLayout>{children}</AppLayout>
+              <Toaster />
+            </AppStateProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

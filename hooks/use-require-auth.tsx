@@ -15,7 +15,7 @@ export function useRequireAuth() {
         title: "Authentication Required",
         description: feature ? `Please sign in to access ${feature}.` : "Please sign in to continue.",
         variant: "destructive",
-        duration: 4000,
+        duration: 3000,
       })
       router.push("/login")
       return false
