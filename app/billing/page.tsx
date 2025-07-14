@@ -19,15 +19,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function BillingPage() {
   const { user, updateSubscription } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("plans")
   const [selectedPlan, setSelectedPlan] = useState<"free" | "premium">(user?.subscriptionPlan || "free")
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "stripe" | "evertry">("stripe")
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const { toast } = useToast()
+  const [cardDetails, setCardDetails] = useState({
+    number: "",
+    expiry: "",
+    cvc: ""
+  })
 
   if (!user) return null
 
@@ -36,7 +42,66 @@ export default function BillingPage() {
     ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0
 
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "")
+    const matches = v.match(/\d{4,16}/g)
+    const match = (matches && matches[0]) || ""
+    const parts = []
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4))
+    }
+    if (parts.length) {
+      return parts.join(" ")
+    }
+    return v
+  }
+
+  const formatExpiry = (value: string) => {
+    const v = value.replace(/\D/g, "")
+    if (v.length >= 2) {
+      return v.substring(0, 2) + "/" + v.substring(2, 4)
+    }
+    return v
+  }
+
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCardNumber(e.target.value)
+    if (formatted.length <= 19) {
+      setCardDetails(prev => ({ ...prev, number: formatted }))
+    }
+  }
+
+  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatExpiry(e.target.value)
+    if (formatted.length <= 5) {
+      setCardDetails(prev => ({ ...prev, expiry: formatted }))
+    }
+  }
+
+  const handleCVCChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "")
+    if (value.length <= 4) {
+      setCardDetails(prev => ({ ...prev, cvc: value }))
+    }
+  }
+
   const handleSubscriptionChange = async () => {
+    if (selectedPlan === "premium") {
+      // Validate card details
+      const cardNumberValid = cardDetails.number.replace(/\s/g, "").length === 16
+      const expiryValid = cardDetails.expiry.length === 5 && /^\d{2}\/\d{2}$/.test(cardDetails.expiry)
+      const cvcValid = cardDetails.cvc.length >= 3
+
+      if (!cardNumberValid || !expiryValid || !cvcValid) {
+        toast({
+          title: "Invalid card details",
+          description: "Please enter valid card information",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     setIsSubmitting(true)
     try {
       await updateSubscription(selectedPlan)
@@ -280,7 +345,7 @@ export default function BillingPage() {
 
         {/* Subscription Confirmation Dialog */}
         <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{selectedPlan === "premium" ? "Upgrade to Premium" : "Downgrade to Free"}</DialogTitle>
               <DialogDescription>
@@ -291,57 +356,47 @@ export default function BillingPage() {
             </DialogHeader>
             {selectedPlan === "premium" && (
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Select Payment Method</h4>
-                  <RadioGroup
-                    value={paymentMethod}
-                    onValueChange={(value) => setPaymentMethod(value as "paypal" | "stripe" | "evertry")}
-                    className="grid grid-cols-3 gap-4"
-                  >
-                    <div>
-                      <RadioGroupItem value="paypal" id="paypal" className="sr-only peer" />
-                      <Label
-                        htmlFor="paypal"
-                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6 mb-2">
-                          <path
-                            d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 4.643-5.813 4.643h-2.189c-.988 0-1.829.722-1.968 1.698l-1.12 7.106c-.022.132-.004.267.05.385h3.578c.524 0 .968-.382 1.05-.9l.466-2.942c.14-.976.981-1.698 1.968-1.698h.627c3.595 0 6.664-1.414 7.612-5.618.386-1.724.162-3.14-.613-4.387z"
-                            fill="#00457c"
-                          />
-                        </svg>
-                        PayPal
-                      </Label>
+                <div className="space-y-3">
+                  <Label htmlFor="card-number">Card Number</Label>
+                  <Input
+                    id="card-number"
+                    placeholder="1234 1234 1234 1234"
+                    value={cardDetails.number}
+                    onChange={handleCardNumberChange}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <Label htmlFor="expiry">Expiry Date</Label>
+                    <Input
+                      id="expiry"
+                      placeholder="MM/YY"
+                      value={cardDetails.expiry}
+                      onChange={handleExpiryChange}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1">
+                      <Label htmlFor="cvc">CVC</Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Check className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>3-4 digit code on back of card</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                    <div>
-                      <RadioGroupItem value="stripe" id="stripe" className="sr-only peer" />
-                      <Label
-                        htmlFor="stripe"
-                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6 mb-2">
-                          <path
-                            d="M13.479 9.883c-1.626-.604-2.512-.931-2.512-1.618 0-.604.465-.931 1.395-.931 1.626 0 3.298.652 4.465 1.233l.652-4.097C16.422 3.86 14.796 3.5 13.2 3.5 9.572 3.5 7.062 5.511 7.062 8.487c0 4.097 6.093 4.33 6.093 6.558 0 .652-.605 1.046-1.534 1.046-1.302 0-3.252-.605-4.554-1.395l-.698 4.144c1.395.698 3.205 1.162 5.021 1.162 3.903 0 6.372-1.929 6.372-5.116.046-4.283-6.139-4.516-6.139-6.558 0-.465.419-.838 1.302-.838 1.023 0 2.465.326 3.58.884l.674-4.097z"
-                            fill="#6772e5"
-                          />
-                        </svg>
-                        Stripe
-                      </Label>
-                    </div>
-                    <div>
-                      <RadioGroupItem value="evertry" id="evertry" className="sr-only peer" />
-                      <Label
-                        htmlFor="evertry"
-                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6 mb-2">
-                          <rect width="24" height="24" rx="4" fill="#4CAF50" />
-                          <path d="M7 12h10M12 7v10" stroke="white" strokeWidth="2" />
-                        </svg>
-                        EverTry
-                      </Label>
-                    </div>
-                  </RadioGroup>
+                    <Input
+                      id="cvc"
+                      placeholder="123"
+                      value={cardDetails.cvc}
+                      onChange={handleCVCChange}
+                    />
+                  </div>
                 </div>
               </div>
             )}
