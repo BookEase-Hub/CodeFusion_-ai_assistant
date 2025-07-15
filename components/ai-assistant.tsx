@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import {
   Copy,
@@ -52,10 +52,9 @@ import {
   ZoomOut,
   Download,
   GitBranch,
-  SaveAll,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltips"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
@@ -68,17 +67,15 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import mermaid from "mermaid"
+
 import CodeMirror from "@uiw/react-codemirror"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { javascript } from "@codemirror/lang-javascript"
 import { json } from "@codemirror/lang-json"
 import { html } from "@codemirror/lang-html"
 import { python } from "@codemirror/lang-python"
-import { create } from "zustand"
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -96,62 +93,6 @@ mermaid.initialize({
     tertiaryColor: "#3c3c3c",
   },
 })
-
-// State Management with Zustand
-interface EditorState {
-  tabs: EditorTab[]
-  activeTab: string | null
-  showExplorer: boolean
-  showTerminal: boolean
-  showProblems: boolean
-  activePanel: string | null
-  terminalHeight: number
-  autoSave: boolean
-  addTab: (tab: EditorTab) => void
-  setActiveTab: (id: string | null) => void
-  updateTabContent: (id: string,media: string) => void
-  closeTab: (id: string) => void
-  toggleExplorer: () => void
-  toggleTerminal: () => void
-  toggleProblems: () => void
-  setActivePanel: (panel: string | null) => void
-  setTerminalHeight: (height: number) => void
-  toggleAutoSave: () => void
-}
-
-const useEditorStore = create<EditorState>((set) => ({
-  tabs: [],
-  activeTab: null,
-  showExplorer: true,
-  showTerminal: false,
-  showProblems: false,
-  activePanel: "terminal",
-  terminalHeight: 200,
-  autoSave: false,
-  addTab: (tab) => set((state) => ({ tabs: [...state.tabs, tab] })),
-  setActiveTab: (id) => set({ activeTab: id }),
-  updateTabContent: (id, content) =>
-    set((state) => ({
-      tabs: state.tabs.map((tab) =>
-        tab.id === id ? { ...tab, content, isDirty: true } : tab
-      ),
-    })),
-  closeTab: (id) =>
-    set((state) => {
-      const newTabs = state.tabs.filter((tab) => tab.id !== id)
-      return {
-        tabs: newTabs,
-        activeTab:
-          id === state.activeTab ? (newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null) : state.activeTab,
-      }
-    }),
-  toggleExplorer: () => set((state) => ({ showExplorer: !state.showExplorer })),
-  toggleTerminal: () => set((state) => ({ showTerminal: !state.showTerminal })),
-  toggleProblems: () => set((state) => ({ showProblems: !state.showProblems })),
-  setActivePanel: (panel) => set({ activePanel: panel }),
-  setTerminalHeight: (height) => set({ terminalHeight: Math.min(Math.max(height, 100), 500) }),
-  toggleAutoSave: () => set((state) => ({ autoSave: !state.autoSave })),
-}))
 
 // Mock useRequireAuth hook
 const useRequireAuth = () => ({
@@ -212,17 +153,7 @@ const menuData: MenuCategory[] = [
         label: "New File",
         shortcut: "Ctrl+N",
         icon: Plus,
-        action: () => {
-          const newTab: EditorTab = {
-            id: `tab-${Date.now()}`,
-            name: "untitled.js",
-            content: "// Start coding here\n\n",
-            language: "javascript",
-          }
-          useEditorStore.getState().addTab(newTab)
-          useEditorStore.getState().setActiveTab(newTab.id)
-          toast({ title: "New File Created", description: "A new untitled file has been opened." })
-        },
+        action: () => console.log("New File"),
       },
       {
         label: "New Window",
@@ -230,23 +161,18 @@ const menuData: MenuCategory[] = [
         icon: PlusSquare,
         action: () => console.log("New Window"),
       },
+      { divider: true },
       {
         label: "Open File...",
         shortcut: "Ctrl+O",
         icon: FileIcon,
-        action: () => {
-          // Simulate file picker
-          toast({ title: "Open File", description: "File picker not implemented in this demo." })
-        },
+        action: () => console.log("Open File"),
       },
       {
         label: "Open Folder...",
         shortcut: "Ctrl+K Ctrl+O",
         icon: Folder,
-        action: () => {
-          // Simulate folder picker
-          toast({ title: "Open Folder", description: "Folder picker not implemented in this demo." })
-        },
+        action: () => console.log("Open Folder"),
       },
       {
         label: "Open Workspace...",
@@ -279,38 +205,25 @@ const menuData: MenuCategory[] = [
         label: "Save",
         shortcut: "Ctrl+S",
         icon: Save,
-        action: () => {
-          const { activeTab, tabs } = useEditorStore.getState()
-          if (activeTab) {
-            const tab = tabs.find((t) => t.id === activeTab)
-            if (tab) {
-              useEditorStore.getState().updateTabContent(tab.id, tab.content)
-              toast({ title: "File Saved", description: `${tab.name} has been saved.` })
-            }
-          }
-        },
+        action: () => console.log("Save"),
       },
       {
         label: "Save As...",
         shortcut: "Ctrl+Shift+S",
         icon: Save,
-        action: () => {
-          toast({ title: "Save As", description: "Save as dialog not implemented in this demo." })
-        },
+        action: () => console.log("Save As"),
       },
       {
         label: "Save All",
         shortcut: "Ctrl+K S",
-        icon: SaveAll,
-        action: () => {
-          toast({ title: "Save All", description: "All files have been saved." })
-        },
+        icon: Save,
+        action: () => console.log("Save All"),
       },
       {
         label: "Auto Save",
-        checked: useEditorStore.getState().autoSave,
+        checked: true,
         icon: ToggleRight,
-        action: () => useEditorStore.getState().toggleAutoSave(),
+        action: () => console.log("Toggle Auto Save"),
       },
       { divider: true },
       {
@@ -329,30 +242,20 @@ const menuData: MenuCategory[] = [
       {
         label: "Revert File",
         icon: RefreshCw,
-        action: () => {
-          toast({ title: "Revert File", description: "File reverted to last saved state." })
-        },
+        action: () => console.log("Revert File"),
       },
       { divider: true },
       {
         label: "Close Editor",
         shortcut: "Ctrl+F4",
         icon: X,
-        action: () => {
-          const { activeTab } = useEditorStore.getState()
-          if (activeTab) {
-            useEditorStore.getState().closeTab(activeTab)
-            toast({ title: "Editor Closed", description: "The active editor has been closed." })
-          }
-        },
+        action: () => console.log("Close Editor"),
       },
       {
         label: "Close Folder",
         shortcut: "Ctrl+K F",
         icon: FolderMinus,
-        action: () => {
-          toast({ title: "Close Folder", description: "Current folder has been closed." })
-        },
+        action: () => console.log("Close Folder"),
       },
       {
         label: "Close Window",
@@ -375,66 +278,45 @@ const menuData: MenuCategory[] = [
         label: "Undo",
         shortcut: "Ctrl+Z",
         icon: RotateCcw,
-        action: () => {
-          const { activeTab, tabs } = useEditorStore.getState()
-          if (activeTab) {
-            const tab = tabs.find((t) => t.id === activeTab)
-            if (tab) {
-              // Simulate undo (this would typically integrate with CodeMirror's history)
-              toast({ title: "Undo", description: "Last change undone." })
-            }
-          }
-        },
+        action: () => console.log("Undo"),
       },
       {
         label: "Redo",
         shortcut: "Ctrl+Y",
         icon: RotateCw,
-        action: () => {
-          toast({ title: "Redo", description: "Last change redone." })
-        },
+        action: () => console.log("Redo"),
       },
       { divider: true },
       {
         label: "Cut",
         shortcut: "Ctrl+X",
         icon: Scissors,
-        action: () => {
-          toast({ title: "Cut", description: "Selected text cut to clipboard." })
-        },
+        action: () => console.log("Cut"),
       },
       {
         label: "Copy",
         shortcut: "Ctrl+C",
         icon: Copy,
-        action: () => {
-          toast({ title: "Copy", description: "Selected text copied to clipboard." })
-        },
+        action: () => console.log("Copy"),
       },
       {
         label: "Paste",
         shortcut: "Ctrl+V",
         icon: Clipboard,
-        action: () => {
-          toast({ title: "Paste", description: "Text pasted from clipboard." })
-        },
+        action: () => console.log("Paste"),
       },
       { divider: true },
       {
         label: "Find",
         shortcut: "Ctrl+F",
         icon: Search,
-        action: () => {
-          toast({ title: "Find", description: "Find dialog opened." })
-        },
+        action: () => console.log("Find"),
       },
       {
         label: "Replace",
         shortcut: "Ctrl+H",
         icon: Replace,
-        action: () => {
-          toast({ title: "Replace", description: "Replace dialog opened." })
-        },
+        action: () => console.log("Replace"),
       },
     ],
   },
@@ -445,23 +327,17 @@ const menuData: MenuCategory[] = [
       {
         label: "Select All",
         shortcut: "Ctrl+A",
-        action: () => {
-          toast({ title: "Select All", description: "All text selected." })
-        },
+        action: () => console.log("Select All"),
       },
       {
         label: "Expand Selection",
         shortcut: "Shift+Alt+Right",
-        action: () => {
-          toast({ title: "Expand Selection", description: "Selection expanded." })
-        },
+        action: () => console.log("Expand Selection"),
       },
       {
         label: "Shrink Selection",
         shortcut: "Shift+Alt+Left",
-        action: () => {
-          toast({ title: "Shrink Selection", description: "Selection shrunk." })
-        },
+        action: () => console.log("Shrink Selection"),
       },
     ],
   },
@@ -473,38 +349,26 @@ const menuData: MenuCategory[] = [
         label: "Command Palette",
         shortcut: "Ctrl+Shift+P",
         icon: Command,
-        action: () => {
-          toast({ title: "Command Palette", description: "Command palette opened." })
-        },
+        action: () => console.log("Command Palette"),
       },
       { divider: true },
       {
         label: "Explorer",
         shortcut: "Ctrl+Shift+E",
-        checked: useEditorStore.getState().showExplorer,
-        action: () => useEditorStore.getState().toggleExplorer(),
+        checked: true,
+        action: () => console.log("Explorer"),
       },
       {
         label: "Search",
         shortcut: "Ctrl+Shift+F",
-        checked: false,
-        action: () => {
-          toast({ title: "Search", description: "Search panel opened." })
-        },
+        checked: true,
+        action: () => console.log("Search"),
       },
       {
         label: "Source Control",
         shortcut: "Ctrl+Shift+G",
         checked: false,
-        action: () => {
-          toast({ title: "Source Control", description: "Source control panel opened." })
-        },
-      },
-      {
-        label: "Toggle Terminal",
-        shortcut: "Ctrl+`",
-        checked: useEditorStore.getState().showTerminal,
-        action: () => useEditorStore.getState().toggleTerminal(),
+        action: () => console.log("Source Control"),
       },
     ],
   },
@@ -516,32 +380,24 @@ const menuData: MenuCategory[] = [
         label: "Back",
         shortcut: "Alt+Left",
         icon: ArrowLeft,
-        action: () => {
-          toast({ title: "Back", description: "Navigated back." })
-        },
+        action: () => console.log("Back"),
       },
       {
         label: "Forward",
         shortcut: "Alt+Right",
         icon: ArrowRight,
-        action: () => {
-          toast({ title: "Forward", description: "Navigated forward." })
-        },
+        action: () => console.log("Forward"),
       },
       { divider: true },
       {
-        label "Go to File",
+        label: "Go to File",
         shortcut: "Ctrl+P",
-        action: () => {
-          toast({ title: "Go to File", description: "Go to file dialog opened." })
-        },
+        action: () => console.log("Go to File"),
       },
       {
         label: "Go to Symbol",
         shortcut: "Ctrl+Shift+O",
-        action: () => {
-          toast({ title: "Go to Symbol", description: "Go to symbol dialog opened." })
-        },
+        action: () => console.log("Go to Symbol"),
       },
     ],
   },
@@ -553,50 +409,38 @@ const menuData: MenuCategory[] = [
         label: "Start Debugging",
         shortcut: "F5",
         icon: Bug,
-        action: () => {
-          toast({ title: "Start Debugging", description: "Debugger started." })
-        },
+        action: () => console.log("Start Debugging"),
       },
       {
         label: "Run Without Debugging",
         shortcut: "Ctrl+F5",
         icon: Play,
-        action: () => {
-          toast({ title: "Run Without Debugging", description: "Code executed without debugger." })
-        },
+        action: () => console.log("Run Without Debugging"),
       },
       {
         label: "Stop Debugging",
         shortcut: "Shift+F5",
         icon: Square,
-        action: () => {
-          toast({ title: "Stop Debugging", description: "Debugger stopped." })
-        },
+        action: () => console.log("Stop Debugging"),
       },
       { divider: true },
       {
         label: "Step Over",
         shortcut: "F10",
         icon: StepForward,
-        action: () => {
-          toast({ title: "Step Over", description: "Debugger stepped over." })
-        },
+        action: () => console.log("Step Over"),
       },
       {
         label: "Step Into",
         shortcut: "F11",
         icon: ArrowDown,
-        action: () => {
-          toast({ title: "Step Into", description: "Debugger stepped into." })
-        },
+        action: () => console.log("Step Into"),
       },
       {
         label: "Step Out",
         shortcut: "Shift+F11",
         icon: ArrowUp,
-        action: () => {
-          toast({ title: "Step Out", description: "Debugger stepped out." })
-        },
+        action: () => console.log("Step Out"),
       },
     ],
   },
@@ -608,28 +452,22 @@ const menuData: MenuCategory[] = [
         label: "New Terminal",
         shortcut: "Ctrl+`",
         icon: Terminal,
-        action: () => useEditorStore.getState().toggleTerminal(),
+        action: () => console.log("New Terminal"),
       },
       {
         label: "Split Terminal",
         icon: Layout,
-        action: () => {
-          toast({ title: "Split Terminal", description: "Terminal split." })
-        },
+        action: () => console.log("Split Terminal"),
       },
       { divider: true },
       {
         label: "Clear Terminal",
-        action: () => {
-          toast({ title: "Clear Terminal", description: "Terminal cleared." })
-        },
+        action: () => console.log("Clear Terminal"),
       },
       {
         label: "Kill Terminal",
         icon: Trash2,
-        action: () => {
-          toast({ title: "Kill Terminal", description: "Terminal process terminated." })
-        },
+        action: () => console.log("Kill Terminal"),
       },
     ],
   },
@@ -639,31 +477,23 @@ const menuData: MenuCategory[] = [
     items: [
       {
         label: "Welcome",
-        action: () => {
-          toast({ title: "Welcome", description: "Welcome page opened." })
-        },
+        action: () => console.log("Welcome"),
       },
       {
         label: "Documentation",
         icon: BookOpen,
-        action: () => {
-          toast({ title: "Documentation", description: "Documentation opened." })
-        },
+        action: () => console.log("Documentation"),
       },
       { divider: true },
       {
         label: "Check for Updates",
-        action: () => {
-          toast({ title: "Check for Updates", description: "Checking for updates..." })
-        },
+        action: () => console.log("Check for Updates"),
       },
       { divider: true },
       {
         label: "About",
         icon: Info,
-        action: () => {
-          toast({ title: "About", description: "About page opened." })
-        },
+        action: () => console.log("About"),
       },
     ],
   },
@@ -693,7 +523,7 @@ const ScrollArea = React.forwardRef<
 ))
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
-// CodeEditor Component
+// CodeEditor Component – CodeMirror-based (no WASM)
 function CodeEditor({
   value,
   language,
@@ -707,6 +537,7 @@ function CodeEditor({
   onChange?: (value: string) => void
   readOnly?: boolean
 }) {
+  /* Map language prop to CodeMirror extensions */
   const extensions = React.useMemo(() => {
     switch (language?.toLowerCase()) {
       case "js":
@@ -721,7 +552,7 @@ function CodeEditor({
       case "python":
         return [python()]
       default:
-        return []
+        return [] // fallback – plain‐text
     }
   }, [language])
 
@@ -737,17 +568,8 @@ function CodeEditor({
         highlightActiveLine: true,
         highlightActiveLineGutter: true,
         foldGutter: true,
-        bracketMatching: true,
-        closeBrackets: true,
-        autocompletion: true,
       }}
-      onChange={(val) => {
-        onChange?.(val)
-        if (useEditorStore.getState().autoSave) {
-          useEditorStore.getState().updateTabContent(useEditorStore.getState().activeTab || "", val)
-          toast({ title: "Auto Saved", description: "Changes have been auto-saved." })
-        }
-      }}
+      onChange={(val) => onChange?.(val)}
       style={{ fontSize: 14, fontFamily: `"Fira Code", "JetBrains Mono", monospace` }}
     />
   )
@@ -829,12 +651,7 @@ export function VSCodeMenu() {
 
     if (item.checked !== undefined) {
       return (
-        <DropdownMenuCheckboxItem
-          key={item.label}
-          checked={item.checked}
-          onCheckedChange={item.action}
-          className="flex items-center justify-between"
-        >
+        <DropdownMenuCheckboxItem key={item.label} checked={item.checked} onCheckedChange={item.action}>
           <div className="flex items-center gap-2">
             {item.icon && <item.icon className="h-4 w-4" />}
             <span>{item.label}</span>
@@ -882,7 +699,7 @@ export function VSCodeMenu() {
                 size="sm"
                 className={cn(
                   "h-8 px-3 text-sm rounded-none",
-                  activeMenu === category.label ? "bg-[#3c3c3c]" : "hover:bg-[#3c3c3c]"
+                  activeMenu === category.label ? "bg-[#3c3c3c]" : "hover:bg-[#3c3c3c]",
                 )}
               >
                 {category.label}
@@ -979,7 +796,7 @@ export function VSCodeArchitecture() {
               A --- J
               J --- N
               J --- O
-            `
+            `,
           )
           architectureRef.current.innerHTML = svg
         }
@@ -1018,7 +835,7 @@ export function VSCodeArchitecture() {
               
               L -->|"Exit"| Q["Save Workspace State"]
               Q --> R["Close VS Code"]
-            `
+            `,
           )
           workflowRef.current.innerHTML = svg
         }
@@ -1062,13 +879,12 @@ export function VSCodeArchitecture() {
               
               A --- G
               A --- H
-            `
+            `,
           )
           extensionsRef.current.innerHTML = svg
         }
       } catch (error) {
         console.error("Error rendering diagrams:", error)
-        toast({ title: "Error", description: "Failed to render architecture diagrams." })
       }
     }
 
@@ -1111,15 +927,11 @@ export function VSCodeArchitecture() {
       document.body.appendChild(downloadLink)
       downloadLink.click()
       document.body.removeChild(downloadLink)
-      toast({ title: "Diagram Downloaded", description: "Architecture diagram saved as SVG." })
-    } else {
-      toast({ title: "Error", description: "No diagram available to download." })
     }
   }
 
   const handleRefresh = () => {
     window.location.reload()
-    toast({ title: "Refreshed", description: "Architecture diagrams refreshed." })
   }
 
   return (
@@ -1127,68 +939,25 @@ export function VSCodeArchitecture() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white">VS Code Architecture Diagrams</h2>
         <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleZoomIn}>
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom In</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleZoomOut}>
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom Out</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleDownload}>
-                  <Download className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Download SVG</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleRefresh}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button variant="outline" size="icon" onClick={handleZoomIn}>
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleZoomOut}>
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleDownload}>
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       <Tabs defaultValue="architecture" className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 bg-[#252526]">
-          <TabsTrigger
-            value="architecture"
-            className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
-          >
-            Component Architecture
-          </TabsTrigger>
-          <TabsTrigger
-            value="workflow"
-            className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
-          >
-            Workflow
-          </TabsTrigger>
-          <TabsTrigger
-            value="extensions"
-            className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
-          >
-            Extensions
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="architecture">Component Architecture</TabsTrigger>
+          <TabsTrigger value="workflow">Workflow</TabsTrigger>
+          <TabsTrigger value="extensions">Extensions</TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-auto mt-4 bg-[#252526] rounded-md p-4">
           <TabsContent value="architecture" className="h-full">
@@ -1368,7 +1137,7 @@ export default Header;`,
 function Footer() {
   return (
     <footer className="app-footer">
-      <p>© ${new Date().getFullYear()} CodeFusion. All rights reserved.</p>
+      <p>© {new Date().getFullYear()} CodeFusion. All rights reserved.</p>
     </footer>
   );
 }
@@ -1597,7 +1366,6 @@ function TerminalComponent() {
       // Do nothing for empty command
     } else {
       setCommandHistory((prev) => [...prev, `Command not found: ${cmd}. Type 'help' for available commands.`])
-      toast({ title: "Command Error", description: `Command not found: ${cmd}` })
     }
     setCurrentCommand("")
   }
@@ -1614,7 +1382,7 @@ function TerminalComponent() {
       </div>
       <div className="flex items-center mt-2">
         <span className="text-green-400 mr-2">$</span>
-        <Input
+        <input
           type="text"
           value={currentCommand}
           onChange={(e) => setCurrentCommand(e.target.value)}
@@ -1635,7 +1403,6 @@ function TerminalComponent() {
 // File Explorer Component
 function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }) {
   const [fileTree, setFileTree] = useState(sampleFileTree)
-  const [contextMenu, setContextMenu] = useState<{ path: string; x: number; y: number } | null>(null)
 
   const toggleFolder = (path: string) => {
     const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
@@ -1652,84 +1419,6 @@ function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }
     setFileTree(updateTree(fileTree))
   }
 
-  const handleContextMenu = (e: React.MouseEvent, item: FileTreeItem) => {
-    e.preventDefault()
-    setContextMenu({ path: item.path, x: e.clientX, y: e.clientY })
-  }
-
-  const handleRename = (path: string) => {
-    const newName = prompt("Enter new name:")
-    if (newName) {
-      const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
-        return items.map((item) => {
-          if (item.path === path) {
-            return { ...item, name: newName, path: item.path.replace(/[^/]+$/, newName) }
-          } else if (item.children) {
-            return { ...item, children: updateTree(item.children) }
-          }
-          return item
-        })
-      }
-      setFileTree(updateTree(fileTree))
-      toast({ title: "File Renamed", description: `Renamed to ${newName}` })
-    }
-    setContextMenu(null)
-  }
-
-  const handleDelete = (path: string) => {
-    const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
-      return items.filter((item) => item.path !== path).map((item) => ({
-        ...item,
-        children: item.children ? updateTree(item.children) : undefined,
-      }))
-    }
-    setFileTree(updateTree(fileTree))
-    toast({ title: "File Deleted", description: `File at ${path} deleted.` })
-    setContextMenu(null)
-  }
-
-  const handleDownload = (path: string) => {
-    const file = sampleFileContents[path]
-    if (file) {
-      const blob = new Blob([file.content], { type: "text/plain" })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = path.split("/").pop() || "download"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      toast({ title: "File Downloaded", description: `Downloaded ${path}` })
-    }
-    setContextMenu(null)
-  }
-
-  const handleNewFile = () => {
-    const newFile: FileTreeItem = {
-      id: `file-${Date.now()}`,
-      name: `untitled-${Date.now()}.js`,
-      type: "file",
-      path: `src/untitled-${Date.now()}.js`,
-      language: "javascript",
-    }
-    setFileTree([...fileTree, newFile])
-    sampleFileContents[newFile.path] = { content: "// New file\n", language: "javascript" }
-    toast({ title: "New File", description: `Created ${newFile.name}` })
-  }
-
-  const handleNewFolder = () => {
-    const newFolder: FileTreeItem = {
-      id: `folder-${Date.now()}`,
-      name: `NewFolder-${Date.now()}`,
-      type: "folder",
-      path: `src/NewFolder-${Date.now()}`,
-      isOpen: false,
-      children: [],
-    }
-    setFileTree([...fileTree, newFolder])
-    toast({ title: "New Folder", description: `Created ${newFolder.name}` })
-  }
-
   const renderFileTree = (items: FileTreeItem[], level = 0) => {
     return items.map((item) => (
       <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
@@ -1739,14 +1428,9 @@ function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }
             if (item.type === "folder") {
               toggleFolder(item.path)
             } else {
-              if (!sampleFileContents[item.path]) {
-                toast({ title: "Error", description: "File not found." })
-                return
-              }
               onFileSelect(item.path)
             }
           }}
-          onContextMenu={(e) => handleContextMenu(e, item)}
         >
           {item.type === "folder" ? (
             <>
@@ -1780,7 +1464,7 @@ function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewFolder}>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
                   <FolderPlus className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -1790,7 +1474,7 @@ function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleNewFile}>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
                   <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -1800,7 +1484,7 @@ function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setFileTree(sampleFileTree)}>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -1812,32 +1496,14 @@ function FileExplorer({ onFileSelect }: { onFileSelect: (path: string) => void }
       <ScrollArea className="h-full">
         <div className="p-2">{renderFileTree(fileTree)}</div>
       </ScrollArea>
-      {contextMenu && (
-        <DropdownMenu open={!!contextMenu} onOpenChange={() => setContextMenu(null)}>
-          <DropdownMenuContent
-            className="bg-[#252526] border-[#3c3c3c] text-gray-300"
-            style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y }}
-          >
-            <DropdownMenuItem onClick={() => handleRename(contextMenu.path)}>Rename</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleDelete(contextMenu.path)}>Delete</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleDownload(contextMenu.path)}>Download</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
     </div>
   )
 }
 
 // Problems Panel Component
-function ProblemsPanel({ onSelectProblem }: { onSelectProblem: (file: string, line: number) => void }) {
+function ProblemsPanel() {
   const problems = [
-    {
-      id: 1,
-      type: "error",
-      message: "Cannot find module 'react-router-dom'",
-      file: "src/components/App.tsx",
-      line: 2,
-    },
+    { id: 1, type: "error", message: "Cannot find module 'react-router-dom'", file: "src/components/App.tsx", line: 2 },
     {
       id: 2,
       type: "warning",
@@ -1850,13 +1516,9 @@ function ProblemsPanel({ onSelectProblem }: { onSelectProblem: (file: string, li
 
   return (
     <div className="h-full bg-[#1e1e1e] text-gray-300 text-sm p-2 overflow-y-auto">
-      <div className="mb-2 font-semibold">PROBLEMS ({problems.length})</div>
+      <div className="mb-2 font-semibold">PROBLEMS (3)</div>
       {problems.map((problem) => (
-        <div
-          key={problem.id}
-          className="flex items-start py-1 px-2 hover:bg-[#2a2d2e] rounded-sm cursor-pointer"
-          onClick={() => onSelectProblem(problem.file, problem.line)}
-        >
+        <div key={problem.id} className="flex items-start py-1 px-2 hover:bg-[#2a2d2e] rounded-sm cursor-pointer">
           {problem.type === "error" ? (
             <AlertCircle className="h-4 w-4 mr-2 text-red-500 mt-0.5" />
           ) : problem.type === "warning" ? (
@@ -1878,25 +1540,16 @@ function ProblemsPanel({ onSelectProblem }: { onSelectProblem: (file: string, li
 
 // VS Code Editor Component
 export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) => void }) {
-  const {
-    tabs,
-    activeTab,
-    showExplorer,
-    showTerminal,
-    showProblems,
-    activePanel,
-    terminalHeight,
-    setActiveTab,
-    toggleExplorer,
-    toggleTerminal,
-    toggleProblems,
-    setActivePanel,
-    setTerminalHeight,
-  } = useEditorStore()
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [tabs, setTabs] = useState<EditorTab[]>([])
+  const [showExplorer, setShowExplorer] = useState(true)
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [showProblems, setShowProblems] = useState(false)
+  const [activePanel, setActivePanel] = useState<string | null>("terminal")
   const [activeIcon, setActiveIcon] = useState("explorer")
+  const [terminalHeight, setTerminalHeight] = useState(200)
   const [isResizing, setIsResizing] = useState(false)
   const [startY, setStartY] = useState(0)
-  const editorRef = useRef<{ insertCode: (code: string, language?: string) => void } | null>(null)
 
   const handleFileSelect = (path: string) => {
     const existingTab = tabs.find((tab) => tab.path === path)
@@ -1906,10 +1559,7 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
     }
 
     const fileData = sampleFileContents[path]
-    if (!fileData) {
-      toast({ title: "Error", description: "File not found." })
-      return
-    }
+    if (!fileData) return
 
     const newTab: EditorTab = {
       id: `tab-${Date.now()}`,
@@ -1919,64 +1569,67 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
       path: path,
     }
 
-    useEditorStore.getState().addTab(newTab)
+    setTabs([...tabs, newTab])
     setActiveTab(newTab.id)
   }
 
   const closeTab = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    useEditorStore.getState().closeTab(id)
-    toast({ title: "Tab Closed", description: "The selected tab has been closed." })
+    const newTabs = tabs.filter((tab) => tab.id !== id)
+    if (newTabs.length === 0) {
+      setActiveTab(null)
+    } else if (id === activeTab) {
+      setActiveTab(newTabs[newTabs.length - 1].id)
+    }
+    setTabs(newTabs)
   }
 
   const handleContentChange = (value: string, tabId: string) => {
-    useEditorStore.getState().updateTabContent(tabId, value)
+    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, content: value, isDirty: true } : tab)))
     onCodeChange?.(value)
   }
 
   const insertCodeIntoEditor = (code: string, language = "javascript") => {
     if (activeTab) {
+      // Insert into current tab
       const currentTab = tabs.find((tab) => tab.id === activeTab)
       if (currentTab) {
         const newContent = currentTab.content + "\n\n" + code
         handleContentChange(newContent, activeTab)
-        toast({ title: "Code Inserted", description: "AI-generated code inserted into editor." })
       }
     } else {
+      // Create new tab with the code
       const newTab: EditorTab = {
         id: `tab-${Date.now()}`,
         name: `ai-generated.${language === "python" ? "py" : "js"}`,
         content: code,
         language: language,
       }
-      useEditorStore.getState().addTab(newTab)
+      setTabs([...tabs, newTab])
       setActiveTab(newTab.id)
-      toast({ title: "New AI File", description: "Created new file with AI-generated code." })
     }
   }
 
-  React.useImperativeHandle(editorRef, () => ({
+  // Expose insertCodeIntoEditor to parent component
+  React.useImperativeHandle(React.useRef(), () => ({
     insertCode: insertCodeIntoEditor,
   }))
 
   const toggleSidebar = (icon: string) => {
     if (icon === "explorer") {
-      toggleExplorer()
-    } else if (icon === "search") {
-      toast({ title: "Search", description: "Search panel opened." })
-    } else if (icon === "git") {
-      toast({ title: "Source Control", description: "Source control panel opened." })
-    } else if (icon === "debug") {
-      toast({ title: "Debug", description: "Debug panel opened." })
-    } else if (icon === "extensions") {
-      toast({ title: "Extensions", description: "Extensions panel opened." })
+      setShowExplorer(!showExplorer)
     }
     setActiveIcon(icon)
   }
 
-  const handleSelectProblem = (file: string, line: number) => {
-    handleFileSelect(file)
-    toast({ title: "Navigated to Problem", description: `Jumped to ${file}:${line}` })
+  const togglePanel = (panel: string) => {
+    if (panel === "terminal") {
+      setShowTerminal(!showTerminal)
+      setActivePanel("terminal")
+    } else if (panel === "problems") {
+      setShowProblems(!showProblems)
+      setActivePanel("problems")
+    }
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -2007,20 +1660,12 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
     }
   }, [isResizing, startY])
 
-  const handleSplitEditor = () => {
-    toast({ title: "Split Editor", description: "Editor split into two panes." })
-  }
-
-  const handleMaximize = () => {
-    toast({ title: "Maximize", description: "Editor maximized." })
-  }
-
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] border rounded-md overflow-hidden">
       <VSCodeMenu />
       <div className="flex flex-1 overflow-hidden">
         {/* Activity Bar */}
-        <div className="w-12 h-full flex flex-col items-center bg-[#333333] py-4 gap-6 md:w-12 sm:w-10 xs:w-8">
+        <div className="w-12 h-full flex flex-col items-center bg-[#333333] py-4 gap-6">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -2100,12 +1745,7 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-md"
-                  onClick={() => toast({ title: "Settings", description: "Settings panel opened." })}
-                >
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-md">
                   <Settings className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
@@ -2116,7 +1756,7 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
 
         {/* Sidebar */}
         {showExplorer && (
-          <div className="w-64 h-full border-r border-[#252526] md:w-64 sm:w-48 xs:w-40">
+          <div className="w-64 h-full border-r border-[#252526]">
             <FileExplorer onFileSelect={handleFileSelect} />
           </div>
         )}
@@ -2153,10 +1793,10 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
               </div>
             </ScrollArea>
             <div className="flex items-center ml-auto">
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" onClick={handleSplitEditor}>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none">
                 <Split className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none" onClick={handleMaximize}>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none">
                 <Maximize2 className="h-4 w-4" />
               </Button>
             </div>
@@ -2194,9 +1834,8 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
                       content: "// Start coding here\n\n",
                       language: "javascript",
                     }
-                    useEditorStore.getState().addTab(newTab)
+                    setTabs([...tabs, newTab])
                     setActiveTab(newTab.id)
-                    toast({ title: "New File Created", description: "A new untitled file has been opened." })
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -2206,150 +1845,399 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
             )}
           </div>
 
-          {/* Bottom Panel */}
+          {/* Panel Area */}
           {(showTerminal || showProblems) && (
-            <div className="flex flex-col bg-[#1e1e1e] border-t border-[#252526]">
-              {/* Panel Tabs */}
-              <div className="flex items-center justify-between bg-[#252526] px-4 py-2">
-                <Tabs
-                  value={activePanel || "terminal"}
-                  onValueChange={(value) => setActivePanel(value)}
-                  className="flex items-center"
-                >
-                  <TabsList className="bg-[#252526]">
-                    {showTerminal && (
+            <>
+              <div
+                className="h-1 bg-[#252526] cursor-ns-resize flex items-center justify-center hover:bg-blue-500"
+                onMouseDown={handleMouseDown}
+              >
+                <div className="w-16 h-1 bg-[#3c3c3c]" />
+              </div>
+              <div style={{ height: `${terminalHeight}px` }} className="border-t border-[#252526]">
+                <div className="flex items-center bg-[#252526] border-b border-[#3c3c3c] relative">
+                  <Tabs value={activePanel || "terminal"} className="w-full">
+                    <TabsList className="bg-transparent h-9 p-0">
                       <TabsTrigger
                         value="terminal"
-                        className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
+                        className="rounded-none data-[state=active]:bg-[#1e1e1e] data-[state=active]:shadow-none px-4 h-9"
+                        onClick={() => togglePanel("terminal")}
                       >
-                        Terminal
+                        TERMINAL
                       </TabsTrigger>
-                    )}
-                    {showProblems && (
                       <TabsTrigger
                         value="problems"
-                        className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
+                        className="rounded-none data-[state=active]:bg-[#1e1e1e] data-[state=active]:shadow-none px-4 h-9"
+                        onClick={() => togglePanel("problems")}
                       >
-                        Problems
+                        PROBLEMS
                       </TabsTrigger>
-                    )}
-                  </TabsList>
-                </Tabs>
-                <div className="flex items-center gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => {
-                            if (showTerminal) toggleTerminal()
-                            if (showProblems) toggleProblems()
-                            setActivePanel(null)
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Close Panel</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                    </TabsList>
+                    <div className="h-[calc(100%-36px)]">
+                      <TabsContent value="terminal" className="h-full">
+                        <TerminalComponent />
+                      </TabsContent>
+                      <TabsContent value="problems" className="h-full">
+                        <ProblemsPanel />
+                      </TabsContent>
+                    </div>
+                  </Tabs>
+                  <div className="flex items-center absolute right-0 top-0">
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none">
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-none"
+                      onClick={() => {
+                        setShowTerminal(false)
+                        setShowProblems(false)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
+            </>
+          )}
 
-              {/* Resize Handle */}
-              <div
-                className="h-1 bg-[#252526] hover:bg-[#007acc] cursor-row-resize"
-                onMouseDown={handleMouseDown}
-              />
-
-              {/* Panel Content */}
-              <div style={{ height: `${terminalHeight}px` }} className="overflow-hidden">
-                <Tabs value={activePanel || "terminal"} className="h-full">
-                  {showTerminal && (
-                    <TabsContent value="terminal" className="h-full">
-                      <TerminalComponent />
-                    </TabsContent>
-                  )}
-                  {showProblems && (
-                    <TabsContent value="problems" className="h-full">
-                      <ProblemsPanel onSelectProblem={handleSelectProblem} />
-                    </TabsContent>
-                  )}
-                </Tabs>
+          {/* Status Bar */}
+          <div className="h-6 bg-[#007acc] text-white flex items-center px-2 text-xs">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center">
+                <GitBranch className="h-3.5 w-3.5 mr-1" />
+                <span>main</span>
+              </div>
+              <div className="flex items-center">
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                <span>AI: Ready</span>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Status Bar */}
-      <div className="flex items-center justify-between bg-[#007acc] text-white text-sm h-6 px-4">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1">
-            <FileText className="h-4 w-4" />
-            {tabs.find((tab) => tab.id === activeTab)?.name || "No file selected"}
-          </span>
-          {activeTab && (
-            <span>
-              Ln {1}, Col {1}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 text-white hover:bg-[#005f99]"
-                  onClick={() => toast({ title: "Notifications", description: "No new notifications." })}
-                >
-                  <AlertCircle className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Notifications</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 text-white hover:bg-[#005f99]"
-                  onClick={toggleProblems}
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Problems</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+            <div className="flex-1" />
+            <div className="flex items-center gap-4">
+              <span>{activeTab ? tabs.find((t) => t.id === activeTab)?.language || "JavaScript" : ""}</span>
+              <span>UTF-8</span>
+              <span>LF</span>
+              <span>Ln 1, Col 1</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-// Main App Component
-export default function App() {
-  const handleCodeChange = (code: string) => {
-    console.log("Code changed:", code)
+// Chat Panel Component
+function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: string) => void }) {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      role: "assistant",
+      content:
+        "Hi! I'm your AI coding assistant. I can help you write, debug, and optimize code. What would you like to work on?",
+    },
+  ])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { requireAuth } = useRequireAuth()
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const generateAIResponse = (userInput: string): Message => {
+    const lowerInput = userInput.toLowerCase()
+
+    if (lowerInput.includes("function") || lowerInput.includes("create") || lowerInput.includes("write")) {
+      if (lowerInput.includes("react") || lowerInput.includes("component")) {
+        return {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Here's a React component based on your request:",
+          code: {
+            language: "javascript",
+            value: `import React, { useState } from 'react';
+
+function MyComponent() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div className="component">
+      <h2>My Component</h2>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>
+        Increment
+      </button>
+      <button onClick={() => setCount(count - 1)}>
+        Decrement
+      </button>
+    </div>
+  );
+}
+
+export default MyComponent;`,
+          },
+        }
+      } else if (lowerInput.includes("python")) {
+        return {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Here's a Python function for you:",
+          code: {
+            language: "python",
+            value: `def process_data(data):
+    """
+    Process and analyze data
+    """
+    if not data:
+        return None
+    
+    # Process the data
+    processed = []
+    for item in data:
+        if isinstance(item, (int, float)):
+            processed.append(item * 2)
+        else:
+            processed.append(str(item).upper())
+    
+    return processed
+
+# Example usage
+sample_data = [1, 2, "hello", 3.14, "world"]
+result = process_data(sample_data)
+print(result)`,
+          },
+        }
+      } else {
+        return {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Here's a JavaScript function that might help:",
+          code: {
+            language: "javascript",
+            value: `function processArray(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return [];
+  }
+  
+  return arr
+    .filter(item => item !== null && item !== undefined)
+    .map(item => {
+      if (typeof item === 'string') {
+        return item.trim().toLowerCase();
+      }
+      if (typeof item === 'number') {
+        return Math.round(item * 100) / 100;
+      }
+      return item;
+    })
+    .sort();
+}
+
+// Example usage
+const data = [3.14159, "  Hello  ", null, "WORLD", 2.71828];
+const result = processArray(data);
+console.log(result);`,
+          },
+        }
+      }
+    } else if (lowerInput.includes("debug") || lowerInput.includes("fix") || lowerInput.includes("error")) {
+      return {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "I've analyzed your code and found a potential issue. Here's a suggestion to fix it:",
+        code: {
+          language: "javascript",
+          value: `// Original code
+function calculateArea(width, height) {
+  return width * height;
+}
+
+// Fixed code
+function calculateArea(width, height) {
+  if (typeof width !== 'number' || typeof height !== 'number') {
+    return 'Invalid input. Width and height must be numbers.';
+  }
+  return width * height;
+}`,
+        },
+      }
+    } else if (lowerInput.includes("optimize") || lowerInput.includes("performance") || lowerInput.includes("faster")) {
+      return {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Here's an optimized version of your code for better performance:",
+        code: {
+          language: "javascript",
+          value: `// Original code
+function slowFunction(arr) {
+  let result = [];
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] % 2 === 0) {
+      result.push(arr[i]);
+    }
+  }
+  return result;
+}
+
+// Optimized code
+function fastFunction(arr) {
+  return arr.filter(num => num % 2 === 0);
+}`,
+        },
+      }
+    } else {
+      return {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content:
+          "I can help you with coding tasks, debugging, and optimization. Please provide more specific instructions or code snippets.",
+      }
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!input.trim()) return
+
+    setIsLoading(true)
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input,
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+
+    // Simulate AI response (replace with actual API call later)
+    setTimeout(() => {
+      const aiResponse = generateAIResponse(input)
+      setMessages((prev) => [...prev, aiResponse])
+      setIsLoading(false)
+    }, 1500)
+  }
+
+  const copyCode = (code: string, id: string) => {
+    navigator.clipboard.writeText(code)
+    setCopied(id)
+    setTimeout(() => {
+      setCopied(null)
+    }, 2000)
+  }
+
+  const handleInsert = (code: string, language: string) => {
+    onInsertCode(code, language)
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#1e1e1e]">
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col">
-          <VSCodeEditor onCodeChange={handleCodeChange} />
+    <div className="flex flex-col h-full bg-[#252526] text-white">
+      <div className="flex-1 overflow-y-auto p-4">
+        {messages.map((message) => (
+          <div key={message.id} className={`mb-4 ${message.role === "user" ? "text-right" : ""}`}>
+            <div
+              className={`inline-block rounded-lg p-3 max-w-[80%] break-words ${
+                message.role === "user" ? "bg-[#3c3c3c]" : "bg-[#1e1e1e]"
+              }`}
+            >
+              {message.content}
+            </div>
+            {message.code && (
+              <div className="relative mt-2 rounded-md overflow-hidden">
+                <CodeEditor value={message.code.value} language={message.code.language} height="200px" readOnly />
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyCode(message.code!.value, message.id)}
+                    disabled={copied === message.id}
+                  >
+                    {copied === message.id ? <Clipboard className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleInsert(message.code!.value, message.code!.language)}
+                  >
+                    <FileCode2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="p-4 border-t border-[#3c3c3c] bg-[#1e1e1e]">
+        <div className="flex items-center">
+          <input
+            type="text"
+            className="flex-1 bg-[#333333] text-white border border-[#3c3c3c] rounded-md py-2 px-3 outline-none"
+            placeholder="Ask me anything..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                sendMessage()
+              }
+            }}
+          />
+          <Button variant="primary" className="ml-2" onClick={sendMessage} disabled={isLoading}>
+            {isLoading ? "Sending..." : "Send"}
+          </Button>
         </div>
-        <div className="w-1/2 border-l border-[#252526] p-4 overflow-auto">
+      </div>
+    </div>
+  )
+}
+
+// ⬇️ append to the bottom of the file
+// -----------------------------------------------------------------
+/**
+ * Top-level AI Assistant screen that combines:
+ *  – Code editor (with VS-Code-like UX)
+ *  – Chat panel (AI prompt / response)
+ *  – Architecture diagrams
+ */
+export function AIAssistant() {
+  const editorRef = React.useRef<{
+    insertCode: (code: string, language?: string) => void
+  } | null>(null)
+
+  // helper passed to ChatPanel so the AI can drop code into editor
+  const handleInsertCode = React.useCallback((code: string, language = "javascript") => {
+    editorRef.current?.insertCode(code, language)
+  }, [])
+
+  return (
+    <div className="grid lg:grid-cols-12 gap-4 h-[calc(100vh-8rem)]">
+      <div className="lg:col-span-8 h-full">
+        <VSCodeEditor
+          ref={editorRef as any} // satisfy TS
+          onCodeChange={() => {
+            /* TODO: dispatch to global store for real-time sync */
+          }}
+        />
+      </div>
+
+      <div className="lg:col-span-4 flex flex-col h-full">
+        <div className="flex-1 overflow-hidden border rounded-md">
+          <ChatPanel onInsertCode={handleInsertCode} />
+        </div>
+        <div className="mt-4 h-[35%]">
           <VSCodeArchitecture />
         </div>
       </div>
     </div>
   )
 }
+// default export for backwards compatibility
+export default AIAssistant
+// -----------------------------------------------------------------
