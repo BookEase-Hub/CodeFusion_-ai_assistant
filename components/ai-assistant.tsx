@@ -1,4 +1,4 @@
-gg"use client"
+"use client"
 
 import * as React from "react"
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, createContext, useContext } from "react"
@@ -2200,7 +2200,4 @@ export const VSCodeEditor = forwardRef<
             </>
           )}
 
-          {/* Status Bar */}
-          <div className="h-6 bg-[#007acc] text-white flex items-center px-2 text-xs">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center
+          
