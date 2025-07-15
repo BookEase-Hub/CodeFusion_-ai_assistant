@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle, createContext, useContext } from "react"
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import {
   Copy,
@@ -60,6 +60,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSub,
   DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
@@ -71,7 +72,6 @@ import { html } from "@codemirror/lang-html"
 import { python } from "@codemirror/lang-python"
 import { css } from "@codemirror/lang-css"
 import { useToast } from "@/hooks/use-toast"
-import mermaid from "mermaid"
 
 // Types and Interfaces
 interface EditorTab {
@@ -109,55 +109,6 @@ interface MenuCategory {
   icon: React.ElementType
   items: MenuItem[]
 }
-
-interface Message {
-  id: number
-  text: string
-  isUser: boolean
-  code?: string
-  language?: string
-}
-
-interface AppState {
-  aiAssistant: {
-    messages: Message[]
-    currentMessage: string
-  }
-  editor: {
-    openFiles: EditorTab[]
-    activeFile: string | null
-  }
-  apiHub: {
-    endpoints: string[]
-  }
-  dashboard: {
-    widgets: string[]
-  }
-  settings: {
-    theme: string
-  }
-  project: {
-    details: string
-  }
-}
-
-// App Context for State Persistence
-const AppContext = createContext<{
-  state: AppState
-  updateState: (newState: Partial<AppState>) => void
-}>({
-  state: {
-    aiAssistant: { messages: [], currentMessage: "" },
-    editor: { openFiles: [], activeFile: null },
-    apiHub: { endpoints: [] },
-    dashboard: { widgets: [] },
-    settings: { theme: "dark" },
-    project: { details: "" },
-  },
-  updateState: () => {},
-})
-
-const useAppContext = () => useContext(AppContext)
 
 // ScrollArea Component
 const ScrollArea = React.forwardRef<
@@ -1212,379 +1163,6 @@ function ProblemsPanel() {
   )
 }
 
-// Chat Panel Component
-function ChatPanel({
-  onInsertCode,
-}: {
-  onInsertCode: (code: string, language: string) => void
-}) {
-  const { state, updateState } = useAppContext()
-  const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
-
-  const messages = state.aiAssistant.messages
-  const currentMessage = state.aiAssistant.currentMessage
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  const useRequireAuth = () => {
-    return true // Mock authentication
-  }
-
-  const generateAIResponse = (message: string): { text: string; code?: string; language?: string } => {
-    const lowerMessage = message.toLowerCase()
-    if (lowerMessage.includes("react") || lowerMessage.includes("component")) {
-      return {
-        text: "Here's a sample React component:",
-        code: `import React from 'react';
-
-function SampleComponent() {
-  return (
-    <div className="sample">
-      <h1>Hello, World!</h1>
-    </div>
-  );
-}
-
-export default SampleComponent;`,
-        language: "typescript",
-      }
-    } else if (lowerMessage.includes("python")) {
-      return {
-        text: "Here's a Python function for you:",
-        code: `def calculate_sum(a, b):
-    return a + b
-
-result = calculate_sum(5, 10)
-print(f"Sum: {result}")`,
-        language: "python",
-      }
-    } else if (lowerMessage.includes("function") || lowerMessage.includes("create") || lowerMessage.includes("write")) {
-      return {
-        text: "Here's a JavaScript function for you:",
-        code: `function greet(name) {
-  return \`Hello, \${name}!\`;
-}
-
-console.log(greet("User"));`,
-        language: "javascript",
-      }
-    } else if (lowerMessage.includes("debug") || lowerMessage.includes("fix") || lowerMessage.includes("error")) {
-      return {
-        text: "Here's a debugged version of a common issue:",
-        code: `// Fixed null check
-function processData(data) {
-  if (!data) {
-    throw new Error("Data is undefined or null");
-  }
-  return data.map(item => item.toUpperCase());
-}`,
-        language: "javascript",
-      }
-    } else if (lowerMessage.includes("optimize") || lowerMessage.includes("performance") || lowerMessage.includes("faster")) {
-      return {
-        text: "Here's an optimized version of a loop:",
-        code: `// Optimized array processing
-const processArray = (arr) => {
-  const result = new Map();
-  for (const item of arr) {
-    result.set(item.id, item);
-  }
-  return result;
-};`,
-        language: "javascript",
-      }
-    } else {
-      return {
-        text: "I'm not sure what you're asking for. Could you clarify or ask for something specific like 'create a React component' or 'debug my code'?",
-      }
-    }
-  }
-
-  const handleSendMessage = () => {
-    if (!currentMessage.trim()) return
-    if (!useRequireAuth()) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to use the AI Assistant.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const newMessage: Message = {
-      id: messages.length + 1,
-      text: currentMessage,
-      isUser: true,
-    }
-
-    updateState({
-      aiAssistant: {
-        ...state.aiAssistant,
-        messages: [...messages, newMessage],
-        currentMessage: "",
-      },
-    })
-
-    setIsLoading(true)
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(currentMessage)
-      const responseMessage: Message = {
-        id: messages.length + 2,
-        text: aiResponse.text,
-        isUser: false,
-        code: aiResponse.code,
-        language: aiResponse.language,
-      }
-      updateState({
-        aiAssistant: {
-          ...state.aiAssistant,
-          messages: [...state.aiAssistant.messages, responseMessage],
-        },
-      })
-      setIsLoading(false)
-    }, 1000)
-  }
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code)
-    toast({
-      title: "Copied",
-      description: "Code copied to clipboard!",
-    })
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
-      <div className="p-4 border-b border-[#3c3c3c]">
-        <h2 className="text-lg font-semibold">AI Assistant</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`mb-4 p-3 rounded-lg ${message.isUser ? "bg-[#2a2d2e] ml-8" : "bg-[#252526] mr-8"}`}
-          >
-            <p className="text-sm">{message.text}</p>
-            {message.code && (
-              <div className="mt-2 relative">
-                <CodeEditor
-                  value={message.code}
-                  language={message.language || "javascript"}
-                  height="200px"
-                  readOnly
-                />
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopyCode(message.code!)}
-                    className="bg-[#3c3c3c] hover:bg-[#4c4c4c]"
-                  >
-                    <Copy className="h-4 w-4 mr-1" />
-                    Copy
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onInsertCode(message.code!, message.language || "javascript")}
-                    className="bg-[#3c3c3c] hover:bg-[#4c4c4c]"
-                  >
-                    <FileCode2 className="h-4 w-4 mr-1" />
-                    Insert
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </ScrollArea>
-      <div className="p-4 border-t border-[#3c3c3c] flex items-center gap-2">
-        <input
-          type="text"
-          value={currentMessage}
-          onChange={(e) => updateState({ aiAssistant: { ...state.aiAssistant, currentMessage: e.target.value } })}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              handleSendMessage()
-            }
-          }}
-          className="flex-1 bg-[#252526] text-gray-300 p-2 rounded-md outline-none border border-[#3c3c3c]"
-          placeholder="Ask the AI Assistant..."
-        />
-        <Button
-          onClick={handleSendMessage}
-          disabled={isLoading || !currentMessage.trim()}
-          className="bg-[#007acc] hover:bg-[#005f99]"
-        >
-          {isLoading ? "Loading..." : "Send"}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// VS Code Architecture Component
-function VSCodeArchitecture() {
-  const [zoomLevel, setZoomLevel] = useState(1)
-  const [activeDiagram, setActiveDiagram] = useState("components")
-  const diagramRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: "dark",
-      themeVariables: {
-        background: "#1e1e1e",
-        primaryColor: "#252526",
-        secondaryColor: "#3c3c3c",
-        tertiaryColor: "#007acc",
-        primaryTextColor: "#ffffff",
-        secondaryTextColor: "#cccccc",
-        tertiaryTextColor: "#cccccc",
-      },
-    })
-
-    const renderDiagram = async () => {
-      if (diagramRef.current) {
-        const diagram = getDiagramContent(activeDiagram)
-        const { svg } = await mermaid.render("mermaid-diagram", diagram)
-        diagramRef.current.innerHTML = svg
-      }
-    }
-    renderDiagram()
-  }, [activeDiagram])
-
-  const getDiagramContent = (type: string) => {
-    if (type === "components") {
-      return `
-        graph TD
-          A[VSCodeEditor] --> B[Menu]
-          A --> C[Sidebar]
-          A --> D[Editor]
-          A --> E[Panel]
-          C --> F[FileExplorer]
-          D --> G[Tabs]
-          D --> H[CodeEditor]
-          E --> I[Terminal]
-          E --> J[Problems]
-      `
-    } else if (type === "workflow") {
-      return `
-        sequenceDiagram
-          participant U as User
-          participant V as VSCodeEditor
-          participant F as FileExplorer
-          participant C as CodeEditor
-          participant T as Terminal
-          U->>V: Open Application
-          V->>F: Load File Tree
-          U->>F: Select File
-          F->>C: Open File
-          U->>C: Edit Code
-          C->>V: Save Changes
-          U->>T: Run Command
-          T->>V: Display Output
-      `
-    } else if (type === "extensions") {
-      return `
-        classDiagram
-          class VSCodeExtensionAPI {
-            +registerCommand()
-            +registerLanguage()
-            +registerTheme()
-            +registerTreeDataProvider()
-          }
-          class Extension {
-            +activate()
-            +deactivate()
-          }
-          class LanguageExtension {
-            +provideHover()
-            +provideCompletionItems()
-          }
-          class ThemeExtension {
-            +defineColors()
-            +defineStyles()
-          }
-          VSCodeExtensionAPI <|-- Extension
-          Extension <|-- LanguageExtension
-          Extension <|-- ThemeExtension
-      `
-    }
-    return ""
-  }
-
-  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.1, 2))
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5))
-  const handleDownload = () => {
-    if (diagramRef.current) {
-      const svg = diagramRef.current.querySelector("svg")
-      if (svg) {
-        const serializer = new XMLSerializer()
-        const source = serializer.serializeToString(svg)
-        const blob = new Blob([source], { type: "image/svg+xml" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `${activeDiagram}-diagram.svg`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }
-    }
-  }
-
-  return (
-    <div className="h-full bg-[#1e1e1e] text-gray-300 flex flex-col">
-      <div className="p-4 border-b border-[#3c3c3c]">
-        <h2 className="text-lg font-semibold">Architecture</h2>
-      </div>
-      <Tabs
-        value={activeDiagram}
-        onValueChange={setActiveDiagram}
-        className="flex-1 flex flex-col"
-      >
-        <TabsList className="bg-[#252526] px-4">
-          <TabsTrigger value="components">Components</TabsTrigger>
-          <TabsTrigger value="workflow">Workflow</TabsTrigger>
-          <TabsTrigger value="extensions">Extensions</TabsTrigger>
-        </TabsList>
-        <div className="p-4 flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleZoomIn}>
-            Zoom In
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleZoomOut}>
-            Zoom Out
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleDownload}>
-            Download SVG
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.location.reload()}
-          >
-            Refresh
-          </Button>
-        </div>
-        <ScrollArea className="flex-1 p-4">
-          <div
-            ref={diagramRef}
-            className="mermaid-diagram"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: "top left" }}
-          />
-        </ScrollArea>
-      </Tabs>
-    </div>
-  )
-}
-
 // Main VS Code Editor Component
 export const VSCodeEditor = forwardRef<
   {
@@ -1596,9 +1174,11 @@ export const VSCodeEditor = forwardRef<
   },
   {
     onCodeChange?: (code: string) => void
+    initialState?: any
   }
->(({ onCodeChange }, ref) => {
-  const { state, updateState } = useAppContext()
+>(({ onCodeChange, initialState }, ref) => {
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [tabs, setTabs] = useState<EditorTab[]>(initialState?.openFiles || [])
   const [showExplorer, setShowExplorer] = useState(true)
   const [showTerminal, setShowTerminal] = useState(false)
   const [showProblems, setShowProblems] = useState(false)
@@ -1613,9 +1193,12 @@ export const VSCodeEditor = forwardRef<
   const fileManager = useFileManager()
   const { toast } = useToast()
 
-  // Initialize editor state
-  const tabs = state.editor.openFiles
-  const activeTab = state.editor.activeFile
+  // Restore active file from initial state
+  useEffect(() => {
+    if (initialState?.activeFile && tabs.length > 0) {
+      setActiveTab(initialState.activeFile)
+    }
+  }, [initialState, tabs])
 
   // Auto-save functionality
   useEffect(() => {
@@ -1623,12 +1206,7 @@ export const VSCodeEditor = forwardRef<
       const interval = setInterval(() => {
         const currentTab = tabs.find((tab) => tab.id === activeTab)
         if (currentTab && currentTab.isDirty) {
-          updateState({
-            editor: {
-              ...state.editor,
-              openFiles: tabs.map((tab) => (tab.id === activeTab ? { ...tab, isDirty: false } : tab)),
-            },
-          })
+          setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, isDirty: false } : tab)))
           toast({
             title: "Auto Saved",
             description: `${currentTab.name} has been auto-saved.`,
@@ -1637,12 +1215,12 @@ export const VSCodeEditor = forwardRef<
       }, 5000)
       return () => clearInterval(interval)
     }
-  }, [autoSave, activeTab, tabs, toast, updateState, state])
+  }, [autoSave, activeTab, tabs, toast])
 
   const handleFileSelect = (path: string) => {
     const existingTab = tabs.find((tab) => tab.path === path)
     if (existingTab) {
-      updateState({ editor: { ...state.editor, activeFile: existingTab.id } })
+      setActiveTab(existingTab.id)
       return
     }
 
@@ -1657,12 +1235,8 @@ export const VSCodeEditor = forwardRef<
       path: path,
     }
 
-    updateState({
-      editor: {
-        openFiles: [...tabs, newTab],
-        activeFile: newTab.id,
-      },
-    })
+    setTabs([...tabs, newTab])
+    setActiveTab(newTab.id)
 
     // Add to recent files
     setRecentFiles((prev) => [path, ...prev.filter((p) => p !== path)].slice(0, 10))
@@ -1671,22 +1245,16 @@ export const VSCodeEditor = forwardRef<
   const closeTab = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     const newTabs = tabs.filter((tab) => tab.id !== id)
-    const newActiveTab = newTabs.length === 0 ? null : id === activeTab ? newTabs[newTabs.length - 1].id : activeTab
-    updateState({
-      editor: {
-        openFiles: newTabs,
-        activeFile: newActiveTab,
-      },
-    })
+    if (newTabs.length === 0) {
+      setActiveTab(null)
+    } else if (id === activeTab) {
+      setActiveTab(newTabs[newTabs.length - 1].id)
+    }
+    setTabs(newTabs)
   }
 
   const handleContentChange = (value: string, tabId: string) => {
-    updateState({
-      editor: {
-        ...state.editor,
-        openFiles: tabs.map((tab) => (tab.id === tabId ? { ...tab, content: value, isDirty: true } : tab)),
-      },
-    })
+    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, content: value, isDirty: true } : tab)))
     onCodeChange?.(value)
   }
 
@@ -1704,12 +1272,8 @@ export const VSCodeEditor = forwardRef<
         content: code,
         language: language,
       }
-      updateState({
-        editor: {
-          openFiles: [...tabs, newTab],
-          activeFile: newTab.id,
-        },
-      })
+      setTabs([...tabs, newTab])
+      setActiveTab(newTab.id)
     }
   }
 
@@ -1720,12 +1284,8 @@ export const VSCodeEditor = forwardRef<
       content: "// Start coding here\n\n",
       language: "javascript",
     }
-    updateState({
-      editor: {
-        openFiles: [...tabs, newTab],
-        activeFile: newTab.id,
-      },
-    })
+    setTabs([...tabs, newTab])
+    setActiveTab(newTab.id)
   }
 
   const createNewFolder = () => {
@@ -1747,20 +1307,10 @@ export const VSCodeEditor = forwardRef<
     if (currentTab) {
       if (currentTab.path) {
         fileManager.saveFile(currentTab.content, currentTab.name)
-        updateState({
-          editor: {
-            ...state.editor,
-            openFiles: tabs.map((tab) => (tab.id === activeTab ? { ...tab, isDirty: false } : tab)),
-          },
-        })
+        setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, isDirty: false } : tab)))
       } else {
         fileManager.saveAs(currentTab.content, currentTab.name, (filename) => {
-          updateState({
-            editor: {
-              ...state.editor,
-              openFiles: tabs.map((tab) => (tab.id === activeTab ? { ...tab, name: filename, isDirty: false } : tab)),
-            },
-          })
+          setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, name: filename, isDirty: false } : tab)))
         })
       }
     }
@@ -1770,12 +1320,7 @@ export const VSCodeEditor = forwardRef<
     const currentTab = tabs.find((tab) => tab.id === activeTab)
     if (currentTab) {
       fileManager.saveAs(currentTab.content, currentTab.name, (filename) => {
-        updateState({
-          editor: {
-            ...state.editor,
-            openFiles: tabs.map((tab) => (tab.id === activeTab ? { ...tab, name: filename, isDirty: false } : tab)),
-          },
-        })
+        setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, name: filename, isDirty: false } : tab)))
       })
     }
   }
@@ -1786,12 +1331,7 @@ export const VSCodeEditor = forwardRef<
         fileManager.saveFile(tab.content, tab.name)
       }
     })
-    updateState({
-      editor: {
-        ...state.editor,
-        openFiles: tabs.map((tab) => ({ ...tab, isDirty: false })),
-      },
-    })
+    setTabs(tabs.map((tab) => ({ ...tab, isDirty: false })))
     toast({
       title: "All Files Saved",
       description: "All modified files have been saved successfully.",
@@ -1807,12 +1347,8 @@ export const VSCodeEditor = forwardRef<
       language: language,
       path: file.name,
     }
-    updateState({
-      editor: {
-        openFiles: [...tabs, newTab],
-        activeFile: newTab.id,
-      },
-    })
+    setTabs([...tabs, newTab])
+    setActiveTab(newTab.id)
     toast({
       title: "File Opened",
       description: `${file.name} has been opened successfully.`,
@@ -1830,7 +1366,7 @@ export const VSCodeEditor = forwardRef<
     })
   }
 
-  // Menu action handlers
+  // All menu action handlers
   const menuHandlers = {
     onNewFile: createNewFile,
     onOpenFile: fileManager.openFile,
@@ -1892,8 +1428,13 @@ export const VSCodeEditor = forwardRef<
     },
     getOpenFiles: () => tabs,
     getActiveFile: () => activeTab,
-    restoreState: (newState: any) => {
-      updateState({ editor: newState })
+    restoreState: (state: any) => {
+      if (state.openFiles) {
+        setTabs(state.openFiles)
+      }
+      if (state.activeFile) {
+        setActiveTab(state.activeFile)
+      }
     },
   }))
 
@@ -2083,7 +1624,7 @@ export const VSCodeEditor = forwardRef<
                     className={`flex items-center h-9 px-3 border-r border-[#252526] ${
                       activeTab === tab.id ? "bg-[#1e1e1e]" : "bg-[#2d2d2d] hover:bg-[#2a2a2a]"
                     }`}
-                    onClick={() => updateState({ editor: { ...state.editor, activeFile: tab.id } })}
+                    onClick={() => setActiveTab(tab.id)}
                   >
                     <FileText className="h-4 w-4 mr-2 text-blue-400" />
                     <span className="mr-2">
@@ -2201,31 +1742,32 @@ export const VSCodeEditor = forwardRef<
           )}
 
           {/* Status Bar */}
-<div className="h-6 bg-[#007acc] text-white flex items-center px-2 text-xs">
-  <div className="flex items-center gap-4">
-    <div className="flex items-center">
-      <GitBranch className="h-3.5 w-3.5 mr-1" />
-      <span>main</span>
-    </div>
-    <div className="flex items-center">
-      <Sparkles className="h-3.5 w-3.5 mr-1" />
-      <span>AI: Ready</span>
-    </div>
-    {autoSave && (
-      <div className="flex items-center">
-        <Save className="h-3.5 w-3.5 mr-1" />
-        <span>Auto Save: ON</span>
-      </div>
-    )}
-  </div>
-  <div className="flex-1" />
-  <div className="flex items-center gap-4">
-    <span>{activeTab ? tabs.find((t) => t.id === activeTab)?.language || "JavaScript" : ""}</span>
-    <span>UTF-8</span>
-    <span>LF</span>
-    <span>Ln 1, Col 1</span>
-  </div>
-</div>
+          <div className="h-6 bg-[#007acc] text-white flex items-center px-2 text-xs">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center">
+                <GitBranch className="h-3.5 w-3.5 mr-1" />
+                <span>main</span>
+              </div>
+              <div className="flex items-center">
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+                <span>AI: Ready</span>
+              </div>
+              {autoSave && (
+                <div className="flex items-center">
+                  <Save className="h-3.5 w-3.5 mr-1" />
+                  <span>Auto Save: ON</span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1" />
+            <div className="flex items-center gap-4">
+              <span>{activeTab ? tabs.find((t) => t.id === activeTab)?.language || "JavaScript" : ""}</span>
+              <span>UTF-8</span>
+              <span>LF</span>
+              <span>Ln 1, Col 1</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -2233,265 +1775,3 @@ export const VSCodeEditor = forwardRef<
 
 VSCodeEditor.displayName = "VSCodeEditor"
 
-// API Hub Component
-function APIHub() {
-  const { state, updateState } = useAppContext()
-  const [newEndpoint, setNewEndpoint] = useState("")
-
-  const addEndpoint = () => {
-    if (newEndpoint.trim()) {
-      updateState({
-        apiHub: {
-          endpoints: [...state.apiHub.endpoints, newEndpoint],
-        },
-      })
-      setNewEndpoint("")
-    }
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
-      <div className="p-4 border-b border-[#3c3c3c]">
-        <h2 className="text-lg font-semibold">API Hub</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        <div className="mb-4">
-          <input
-            type="text"
-            value={newEndpoint}
-            onChange={(e) => setNewEndpoint(e.target.value)}
-            placeholder="Add new API endpoint..."
-            className="w-full bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
-          />
-          <Button onClick={addEndpoint} className="mt-2 bg-[#007acc] hover:bg-[#005f99]">
-            Add Endpoint
-          </Button>
-        </div>
-        {state.apiHub.endpoints.map((endpoint, index) => (
-          <div key={index} className="p-3 mb-2 bg-[#252526] rounded-md">
-            {endpoint}
-          </div>
-        ))}
-      </ScrollArea>
-    </div>
-  )
-}
-
-// Dashboard Component
-function Dashboard() {
-  const { state, updateState } = useAppContext()
-  const [newWidget, setNewWidget] = useState("")
-
-  const addWidget = () => {
-    if (newWidget.trim()) {
-      updateState({
-        dashboard: {
-          widgets: [...state.dashboard.widgets, newWidget],
-        },
-      })
-      setNewWidget("")
-    }
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
-      <div className="p-4 border-b border-[#3c3c3c]">
-        <h2 className="text-lg font-semibold">Dashboard</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        <div className="mb-4">
-          <input
-            type="text"
-            value={newWidget}
-            onChange={(e) => setNewWidget(e.target.value)}
-            placeholder="Add new widget..."
-            className="w-full bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
-          />
-          <Button onClick={addWidget} className="mt-2 bg-[#007acc] hover:bg-[#005f99]">
-            Add Widget
-          </Button>
-        </div>
-        {state.dashboard.widgets.map((widget, index) => (
-          <div key={index} className="p-3 mb-2 bg-[#252526] rounded-md">
-            {widget}
-          </div>
-        ))}
-      </ScrollArea>
-    </div>
-  )
-}
-
-// Settings Component
-function Settings() {
-  const { state, updateState } = useAppContext()
-
-  const handleThemeChange = (theme: string) => {
-    updateState({
-      settings: {
-        ...state.settings,
-        theme,
-      },
-    })
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
-      <div className="p-4 border-b border-[#3c3c3c]">
-        <h2 className="text-lg font-semibold">Settings</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        <div className="mb-4">
-          <h3 className="text-sm font-semibold mb-2">Theme</h3>
-          <select
-            value={state.settings.theme}
-            onChange={(e) => handleThemeChange(e.target.value)}
-            className="w-full bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
-          >
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-            <option value="high-contrast">High Contrast</option>
-          </select>
-        </div>
-      </ScrollArea>
-    </div>
-  )
-}
-
-// Project Component
-function Project() {
-  const { state, updateState } = useAppContext()
-
-  const handleDetailsChange = (details: string) => {
-    updateState({
-      project: {
-        details,
-      },
-    })
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
-      <div className="p-4 border-b border-[#3c3c3c]">
-        <h2 className="text-lg font-semibold">Project</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        <textarea
-          value={state.project.details}
-          onChange={(e) => handleDetailsChange(e.target.value)}
-          placeholder="Enter project details..."
-          className="w-full h-40 bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
-        />
-      </ScrollArea>
-    </div>
-  )
-}
-
-// AI Assistant Component
-function AIAssistant() {
-  const editorRef = useRef<{
-    insertCode: (code: string, language?: string) => void
-    getCurrentCode: () => string
-    getOpenFiles: () => EditorTab[]
-    getActiveFile: () => string | null
-  }>(null)
-
-  return (
-    <div className="flex flex-col h-full">
-      <ChatPanel onInsertCode={(code, language) => editorRef.current?.insertCode(code, language)} />
-    </div>
-  )
-}
-
-// Tab Navigator Component
-function TabNavigator() {
-  const [activeTab, setActiveTab] = useState("editor")
-  const { state, updateState } = useAppContext()
-
-  return (
-    <div className="flex flex-col h-full">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <TabsList className="bg-[#252526] border-b border-[#3c3c3c]">
-          <TabsTrigger value="editor" className="px-4 py-2">Editor</TabsTrigger>
-          <TabsTrigger value="ai-assistant" className="px-4 py-2">AI Assistant</TabsTrigger>
-          <TabsTrigger value="api-hub" className="px-4 py-2">API Hub</TabsTrigger>
-          <TabsTrigger value="dashboard" className="px-4 py-2">Dashboard</TabsTrigger>
-          <TabsTrigger value="settings" className="px-4 py-2">Settings</TabsTrigger>
-          <TabsTrigger value="project" className="px-4 py-2">Project</TabsTrigger>
-          <TabsTrigger value="architecture" className="px-4 py-2">Architecture</TabsTrigger>
-        </TabsList>
-        <TabsContent value="editor" className="flex-1">
-          <VSCodeEditor
-            onCodeChange={(code) => {
-              const activeFile = state.editor.activeFile
-              if (activeFile) {
-                updateState({
-                  editor: {
-                    ...state.editor,
-                    openFiles: state.editor.openFiles.map((tab) =>
-                      tab.id === activeFile ? { ...tab, content: code, isDirty: true } : tab
-                    ),
-                  },
-                })
-              }
-            }}
-          />
-        </TabsContent>
-        <TabsContent value="ai-assistant" className="flex-1">
-          <AIAssistant />
-        </TabsContent>
-        <TabsContent value="api-hub" className="flex-1">
-          <APIHub />
-        </TabsContent>
-        <TabsContent value="dashboard" className="flex-1">
-          <Dashboard />
-        </TabsContent>
-        <TabsContent value="settings" className="flex-1">
-          <Settings />
-        </TabsContent>
-        <TabsContent value="project" className="flex-1">
-          <Project />
-        </TabsContent>
-        <TabsContent value="architecture" className="flex-1">
-          <VSCodeArchitecture />
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
-
-// Main App Component
-export default function App() {
-  const [state, setState] = useState<AppState>({
-    aiAssistant: { messages: [], currentMessage: "" },
-    editor: { openFiles: [], activeFile: null },
-    apiHub: { endpoints: [] },
-    dashboard: { widgets: [] },
-    settings: { theme: "dark" },
-    project: { details: "" },
-  })
-
-  const updateState = (newState: Partial<AppState>) => {
-    setState((prev) => ({ ...prev, ...newState }))
-  }
-
-  // Persist state to localStorage
-  useEffect(() => {
-    localStorage.setItem("appState", JSON.stringify(state))
-  }, [state])
-
-  // Load state from localStorage on mount
-  useEffect(() => {
-    const savedState = localStorage.getItem("appState")
-    if (savedState) {
-      setState(JSON.parse(savedState))
-    }
-  }, [])
-
-  return (
-    <AppContext.Provider value={{ state, updateState }}>
-      <div className="h-screen flex flex-col">
-        <TabNavigator />
-      </div>
-    </AppContext.Provider>
-  )
-}
