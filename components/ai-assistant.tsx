@@ -2200,4 +2200,298 @@ export const VSCodeEditor = forwardRef<
             </>
           )}
 
-          
+          {/* Status Bar */}
+<div className="h-6 bg-[#007acc] text-white flex items-center px-2 text-xs">
+  <div className="flex items-center gap-4">
+    <div className="flex items-center">
+      <GitBranch className="h-3.5 w-3.5 mr-1" />
+      <span>main</span>
+    </div>
+    <div className="flex items-center">
+      <Sparkles className="h-3.5 w-3.5 mr-1" />
+      <span>AI: Ready</span>
+    </div>
+    {autoSave && (
+      <div className="flex items-center">
+        <Save className="h-3.5 w-3.5 mr-1" />
+        <span>Auto Save: ON</span>
+      </div>
+    )}
+  </div>
+  <div className="flex-1" />
+  <div className="flex items-center gap-4">
+    <span>{activeTab ? tabs.find((t) => t.id === activeTab)?.language || "JavaScript" : ""}</span>
+    <span>UTF-8</span>
+    <span>LF</span>
+    <span>Ln 1, Col 1</span>
+  </div>
+</div>
+      </div>
+    </div>
+  )
+})
+
+VSCodeEditor.displayName = "VSCodeEditor"
+
+// API Hub Component
+function APIHub() {
+  const { state, updateState } = useAppContext()
+  const [newEndpoint, setNewEndpoint] = useState("")
+
+  const addEndpoint = () => {
+    if (newEndpoint.trim()) {
+      updateState({
+        apiHub: {
+          endpoints: [...state.apiHub.endpoints, newEndpoint],
+        },
+      })
+      setNewEndpoint("")
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
+      <div className="p-4 border-b border-[#3c3c3c]">
+        <h2 className="text-lg font-semibold">API Hub</h2>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="mb-4">
+          <input
+            type="text"
+            value={newEndpoint}
+            onChange={(e) => setNewEndpoint(e.target.value)}
+            placeholder="Add new API endpoint..."
+            className="w-full bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
+          />
+          <Button onClick={addEndpoint} className="mt-2 bg-[#007acc] hover:bg-[#005f99]">
+            Add Endpoint
+          </Button>
+        </div>
+        {state.apiHub.endpoints.map((endpoint, index) => (
+          <div key={index} className="p-3 mb-2 bg-[#252526] rounded-md">
+            {endpoint}
+          </div>
+        ))}
+      </ScrollArea>
+    </div>
+  )
+}
+
+// Dashboard Component
+function Dashboard() {
+  const { state, updateState } = useAppContext()
+  const [newWidget, setNewWidget] = useState("")
+
+  const addWidget = () => {
+    if (newWidget.trim()) {
+      updateState({
+        dashboard: {
+          widgets: [...state.dashboard.widgets, newWidget],
+        },
+      })
+      setNewWidget("")
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
+      <div className="p-4 border-b border-[#3c3c3c]">
+        <h2 className="text-lg font-semibold">Dashboard</h2>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="mb-4">
+          <input
+            type="text"
+            value={newWidget}
+            onChange={(e) => setNewWidget(e.target.value)}
+            placeholder="Add new widget..."
+            className="w-full bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
+          />
+          <Button onClick={addWidget} className="mt-2 bg-[#007acc] hover:bg-[#005f99]">
+            Add Widget
+          </Button>
+        </div>
+        {state.dashboard.widgets.map((widget, index) => (
+          <div key={index} className="p-3 mb-2 bg-[#252526] rounded-md">
+            {widget}
+          </div>
+        ))}
+      </ScrollArea>
+    </div>
+  )
+}
+
+// Settings Component
+function Settings() {
+  const { state, updateState } = useAppContext()
+
+  const handleThemeChange = (theme: string) => {
+    updateState({
+      settings: {
+        ...state.settings,
+        theme,
+      },
+    })
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
+      <div className="p-4 border-b border-[#3c3c3c]">
+        <h2 className="text-lg font-semibold">Settings</h2>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold mb-2">Theme</h3>
+          <select
+            value={state.settings.theme}
+            onChange={(e) => handleThemeChange(e.target.value)}
+            className="w-full bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
+          >
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="high-contrast">High Contrast</option>
+          </select>
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+// Project Component
+function Project() {
+  const { state, updateState } = useAppContext()
+
+  const handleDetailsChange = (details: string) => {
+    updateState({
+      project: {
+        details,
+      },
+    })
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[#1e1e1e] text-gray-300">
+      <div className="p-4 border-b border-[#3c3c3c]">
+        <h2 className="text-lg font-semibold">Project</h2>
+      </div>
+      <ScrollArea className="flex-1 p-4">
+        <textarea
+          value={state.project.details}
+          onChange={(e) => handleDetailsChange(e.target.value)}
+          placeholder="Enter project details..."
+          className="w-full h-40 bg-[#252526] text-gray-300 p-2 rounded-md border border-[#3c3c3c]"
+        />
+      </ScrollArea>
+    </div>
+  )
+}
+
+// AI Assistant Component
+function AIAssistant() {
+  const editorRef = useRef<{
+    insertCode: (code: string, language?: string) => void
+    getCurrentCode: () => string
+    getOpenFiles: () => EditorTab[]
+    getActiveFile: () => string | null
+  }>(null)
+
+  return (
+    <div className="flex flex-col h-full">
+      <ChatPanel onInsertCode={(code, language) => editorRef.current?.insertCode(code, language)} />
+    </div>
+  )
+}
+
+// Tab Navigator Component
+function TabNavigator() {
+  const [activeTab, setActiveTab] = useState("editor")
+  const { state, updateState } = useAppContext()
+
+  return (
+    <div className="flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+        <TabsList className="bg-[#252526] border-b border-[#3c3c3c]">
+          <TabsTrigger value="editor" className="px-4 py-2">Editor</TabsTrigger>
+          <TabsTrigger value="ai-assistant" className="px-4 py-2">AI Assistant</TabsTrigger>
+          <TabsTrigger value="api-hub" className="px-4 py-2">API Hub</TabsTrigger>
+          <TabsTrigger value="dashboard" className="px-4 py-2">Dashboard</TabsTrigger>
+          <TabsTrigger value="settings" className="px-4 py-2">Settings</TabsTrigger>
+          <TabsTrigger value="project" className="px-4 py-2">Project</TabsTrigger>
+          <TabsTrigger value="architecture" className="px-4 py-2">Architecture</TabsTrigger>
+        </TabsList>
+        <TabsContent value="editor" className="flex-1">
+          <VSCodeEditor
+            onCodeChange={(code) => {
+              const activeFile = state.editor.activeFile
+              if (activeFile) {
+                updateState({
+                  editor: {
+                    ...state.editor,
+                    openFiles: state.editor.openFiles.map((tab) =>
+                      tab.id === activeFile ? { ...tab, content: code, isDirty: true } : tab
+                    ),
+                  },
+                })
+              }
+            }}
+          />
+        </TabsContent>
+        <TabsContent value="ai-assistant" className="flex-1">
+          <AIAssistant />
+        </TabsContent>
+        <TabsContent value="api-hub" className="flex-1">
+          <APIHub />
+        </TabsContent>
+        <TabsContent value="dashboard" className="flex-1">
+          <Dashboard />
+        </TabsContent>
+        <TabsContent value="settings" className="flex-1">
+          <Settings />
+        </TabsContent>
+        <TabsContent value="project" className="flex-1">
+          <Project />
+        </TabsContent>
+        <TabsContent value="architecture" className="flex-1">
+          <VSCodeArchitecture />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+// Main App Component
+export default function App() {
+  const [state, setState] = useState<AppState>({
+    aiAssistant: { messages: [], currentMessage: "" },
+    editor: { openFiles: [], activeFile: null },
+    apiHub: { endpoints: [] },
+    dashboard: { widgets: [] },
+    settings: { theme: "dark" },
+    project: { details: "" },
+  })
+
+  const updateState = (newState: Partial<AppState>) => {
+    setState((prev) => ({ ...prev, ...newState }))
+  }
+
+  // Persist state to localStorage
+  useEffect(() => {
+    localStorage.setItem("appState", JSON.stringify(state))
+  }, [state])
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem("appState")
+    if (savedState) {
+      setState(JSON.parse(savedState))
+    }
+  }, [])
+
+  return (
+    <AppContext.Provider value={{ state, updateState }}>
+      <div className="h-screen flex flex-col">
+        <TabNavigator />
+      </div>
+    </AppContext.Provider>
+  )
+}
