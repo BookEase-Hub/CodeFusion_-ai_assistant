@@ -2195,4 +2195,161 @@ export function VSCodeEditor({ onCodeChange }: { onCodeChange?: (code: string) =
                       language: "javascript",
                     }
                     useEditorStore.getState().addTab(newTab)
-                    setActiveTab
+                    setActiveTab(newTab.id)
+                    toast({ title: "New File Created", description: "A new untitled file has been opened." })
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New File
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Panel */}
+          {(showTerminal || showProblems) && (
+            <div className="flex flex-col bg-[#1e1e1e] border-t border-[#252526]">
+              {/* Panel Tabs */}
+              <div className="flex items-center justify-between bg-[#252526] px-4 py-2">
+                <Tabs
+                  value={activePanel || "terminal"}
+                  onValueChange={(value) => setActivePanel(value)}
+                  className="flex items-center"
+                >
+                  <TabsList className="bg-[#252526]">
+                    {showTerminal && (
+                      <TabsTrigger
+                        value="terminal"
+                        className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
+                      >
+                        Terminal
+                      </TabsTrigger>
+                    )}
+                    {showProblems && (
+                      <TabsTrigger
+                        value="problems"
+                        className="data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-white"
+                      >
+                        Problems
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                </Tabs>
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            if (showTerminal) toggleTerminal()
+                            if (showProblems) toggleProblems()
+                            setActivePanel(null)
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Close Panel</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+
+              {/* Resize Handle */}
+              <div
+                className="h-1 bg-[#252526] hover:bg-[#007acc] cursor-row-resize"
+                onMouseDown={handleMouseDown}
+              />
+
+              {/* Panel Content */}
+              <div style={{ height: `${terminalHeight}px` }} className="overflow-hidden">
+                <Tabs value={activePanel || "terminal"} className="h-full">
+                  {showTerminal && (
+                    <TabsContent value="terminal" className="h-full">
+                      <TerminalComponent />
+                    </TabsContent>
+                  )}
+                  {showProblems && (
+                    <TabsContent value="problems" className="h-full">
+                      <ProblemsPanel onSelectProblem={handleSelectProblem} />
+                    </TabsContent>
+                  )}
+                </Tabs>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Status Bar */}
+      <div className="flex items-center justify-between bg-[#007acc] text-white text-sm h-6 px-4">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1">
+            <FileText className="h-4 w-4" />
+            {tabs.find((tab) => tab.id === activeTab)?.name || "No file selected"}
+          </span>
+          {activeTab && (
+            <span>
+              Ln {1}, Col {1}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-white hover:bg-[#005f99]"
+                  onClick={() => toast({ title: "Notifications", description: "No new notifications." })}
+                >
+                  <AlertCircle className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Notifications</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 text-white hover:bg-[#005f99]"
+                  onClick={toggleProblems}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Problems</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Main App Component
+export default function App() {
+  const handleCodeChange = (code: string) => {
+    console.log("Code changed:", code)
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-[#1e1e1e]">
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col">
+          <VSCodeEditor onCodeChange={handleCodeChange} />
+        </div>
+        <div className="w-1/2 border-l border-[#252526] p-4 overflow-auto">
+          <VSCodeArchitecture />
+        </div>
+      </div>
+    </div>
+  )
+}
