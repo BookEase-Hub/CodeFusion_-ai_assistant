@@ -194,7 +194,7 @@ export default function BillingPage() {
                         {user.subscriptionPlan === "premium"
                           ? "Unlimited access to all features"
                           : user.subscriptionStatus === "trial"
-                          ? `Full access to all Premium features. Trial ends in ${daysLeftInTrial} days.`
+                          ? `Unlimited access to all Premium features. Trial ends in ${daysLeftInTrial} days.`
                           : "Generous Free tier with limited usage"}
                       </p>
                       {user.subscriptionPlan !== "premium" && user.subscriptionStatus !== "trial" && (
@@ -239,7 +239,7 @@ export default function BillingPage() {
                   </CardTitle>
                   <CardDescription>
                     {user.subscriptionStatus === "trial"
-                      ? "14-day trial with full Premium access"
+                      ? "14-day trial with unlimited Premium features"
                       : "Generous Hobby tier with limited usage"}
                   </CardDescription>
                 </CardHeader>
@@ -250,7 +250,7 @@ export default function BillingPage() {
                       <>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
-                          <span>14-day trial with unlimited chat/code generation</span>
+                          <span>Unlimited chat and code generation</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
@@ -258,7 +258,7 @@ export default function BillingPage() {
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
-                          <span>Autocomplete + full-file completion</span>
+                          <span>Autocomplete and full-file completion</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
@@ -266,11 +266,11 @@ export default function BillingPage() {
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
-                          <span>Ask Docs/Codebase Search</span>
+                          <span>Ask Docs and codebase search</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
-                          <span>APIs + Plugin integrations (GitHub, Swagger, Firebase)</span>
+                          <span>APIs and plugin integrations (GitHub, Swagger, Firebase)</span>
                         </li>
                       </>
                     ) : (
@@ -285,7 +285,7 @@ export default function BillingPage() {
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
-                          <span>Rate-limited file search + Ask Docs</span>
+                          <span>Rate-limited file search and Ask Docs</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <Check className="h-4 w-4 text-primary mt-0.5" />
@@ -337,7 +337,7 @@ export default function BillingPage() {
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
-                      <span>Unlimited chat/code generation</span>
+                      <span>Unlimited chat and code generation</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
@@ -345,7 +345,7 @@ export default function BillingPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
-                      <span>Autocomplete + full-file completion</span>
+                      <span>Autocomplete and full-file completion</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
@@ -353,11 +353,11 @@ export default function BillingPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
-                      <span>Ask Docs/Codebase Search</span>
+                      <span>Ask Docs and codebase search</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
-                      <span>Full APIs + Plugin integrations (GitHub, Swagger, Firebase)</span>
+                      <span>Full APIs and plugin integrations (GitHub, Swagger, Firebase)</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-primary mt-0.5" />
