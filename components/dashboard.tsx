@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Code,
@@ -14,47 +14,47 @@ import {
   Sparkles,
   Zap,
   CreditCard,
-} from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { CodeEditor } from "@/components/code-editor"
-import { useAuth } from "@/contexts/auth-context"
-import { useRequireAuth } from "@/hooks/use-require-auth"
+} from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { CodeEditor } from "@/components/code-editor";
+import { useAuth } from "@/contexts/auth-context";
+import { useRequireAuth } from "@/hooks/use-require-auth";
 
-export function Dashboard() {
-  const [activeTab, setActiveTab] = useState("overview")
-  const { user } = useAuth()
-  const { requireAuth } = useRequireAuth()
-  const router = useRouter()
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState("overview");
+  const { user } = useAuth();
+  const { requireAuth } = useRequireAuth();
+  const router = useRouter();
 
   // Calculate days left in trial if applicable
   const daysLeftInTrial = user?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0
+    : 0;
 
   const handleTabChange = (value: string) => {
     if (value !== "overview") {
       if (!requireAuth(`the ${value} tab`)) {
-        return
+        return;
       }
     }
-    setActiveTab(value)
-  }
+    setActiveTab(value);
+  };
 
   const handleRecentProjectsClick = () => {
     if (requireAuth("Recent Projects")) {
-      router.push("/projects")
+      router.push("/projects");
     }
-  }
+  };
 
   const handleOpenAIAssistant = () => {
     if (requireAuth("the AI Assistant")) {
-      router.push("/ai-assist")
+      router.push("/ai-assist");
     }
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -67,22 +67,24 @@ export function Dashboard() {
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Free Trial</CardTitle>
-            <CardDescription>You have {daysLeftInTrial} days left in your trial period.</CardDescription>
+            <CardDescription>
+              Unlimited access to all Premium features. {daysLeftInTrial} days left in your 14-day trial.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-2 flex-1 w-full">
                 <div className="flex justify-between text-sm">
-                  <span>5 free generations</span>
-                  <span>3 used</span>
+                  <span>Trial Progress</span>
+                  <span>{daysLeftInTrial} / 14 days</span>
                 </div>
-                <Progress value={60} className="h-2" />
+                <Progress value={((14 - daysLeftInTrial) / 14) * 100} className="h-2" />
               </div>
               <Button
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => {
                   if (requireAuth("Billing")) {
-                    router.push("/billing")
+                    router.push("/billing");
                   }
                 }}
               >
@@ -217,7 +219,7 @@ export function Dashboard() {
                       className="justify-start bg-transparent"
                       onClick={() => {
                         if (requireAuth("AI Assistant suggestions")) {
-                          router.push("/ai-assist")
+                          router.push("/ai-assist");
                         }
                       }}
                     >
@@ -455,7 +457,5 @@ export function Dashboard() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
-
-export default Dashboard
