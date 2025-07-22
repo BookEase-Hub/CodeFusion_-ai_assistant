@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
+import { css } from "@codemirror/lang-css"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import {
   Copy,
@@ -67,6 +68,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
+import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import mermaid from "mermaid"
 
@@ -500,7 +502,7 @@ const menuData: MenuCategory[] = [
 ]
 
 // ScrollArea Component
-const ScrollArea = React.forwardRef<
+const ScrollArea = forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root>
 >(({ className, children, ...props }, ref) => (
@@ -508,13 +510,13 @@ const ScrollArea = React.forwardRef<
     <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">{children}</ScrollAreaPrimitive.Viewport>
     <ScrollAreaPrimitive.Scrollbar
       orientation="vertical"
-      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-[160ms] ease-out hover:bg-[#2a2d2e] data-[orientation=vertical]:w-2.5"
+      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-&lsqb;160ms&rsqb; ease-out hover:bg-[#2a2d2e] data-[orientation=vertical]:w-2.5"
     >
       <ScrollAreaPrimitive.Thumb className="flex-1 bg-[#3c3c3c] rounded-[10px] relative" />
     </ScrollAreaPrimitive.Scrollbar>
     <ScrollAreaPrimitive.Scrollbar
       orientation="horizontal"
-      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-[160ms] ease-out hover:bg-[#2a2d2e] data-[orientation=horizontal]:h-2.5"
+      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-&lsqb;160ms&rsqb; ease-out hover:bg-[#2a2d2e] data-[orientation=horizontal]:h-2.5"
     >
       <ScrollAreaPrimitive.Thumb className="flex-1 bg-[#3c3c3c] rounded-[10px] relative" />
     </ScrollAreaPrimitive.Scrollbar>
@@ -2425,6 +2427,47 @@ function fastFunction(arr) {
             {isLoading ? "Sending..." : "Send"}
           </Button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function VSCodeArchitecture() {
+  const mermaidChart = `
+    graph TD
+      A[Browser] -->|User Interaction| B(Next.js App)
+      B -->|API Request| C{API Route}
+      C -->|Database Query| D[Database]
+      C -->|AI Processing| E[AI Service]
+      E -->|Generates Code| B
+      D -->|Returns Data| C
+      C -->|Sends Response| B
+      B -->|Renders UI| A
+    `
+
+  useEffect(() => {
+    mermaid.contentLoaded()
+  }, [])
+
+  return (
+    <div className="h-full bg-[#252526] text-white p-4 rounded-md border">
+      <h3 className="text-lg font-semibold mb-2">Architecture Diagram</h3>
+      <div className="mermaid h-full w-full" id="mermaid-chart">
+        {mermaidChart}
+      </div>
+      <div className="flex justify-end mt-2">
+        <Button variant="outline" size="sm" className="mr-2">
+          <ZoomIn className="h-4 w-4 mr-1" />
+          Zoom In
+        </Button>
+        <Button variant="outline" size="sm" className="mr-2">
+          <ZoomOut className="h-4 w-4 mr-1" />
+          Zoom Out
+        </Button>
+        <Button variant="outline" size="sm">
+          <Download className="h-4 w-4 mr-1" />
+          Export
+        </Button>
       </div>
     </div>
   )
