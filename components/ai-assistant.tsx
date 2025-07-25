@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 import {
   Copy,
@@ -76,6 +76,9 @@ import { javascript } from "@codemirror/lang-javascript"
 import { json } from "@codemirror/lang-json"
 import { html } from "@codemirror/lang-html"
 import { python } from "@codemirror/lang-python"
+import { css } from "@codemirror/lang-css"
+import { useToast } from "@/components/ui/use-toast"
+import VSCodeArchitecture from "@/components/ui/vscode-architecture"
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -143,362 +146,6 @@ interface FileTreeItem {
   language?: string
 }
 
-// Menu Data
-const menuData: MenuCategory[] = [
-  {
-    label: "File",
-    icon: FileIcon,
-    items: [
-      {
-        label: "New File",
-        shortcut: "Ctrl+N",
-        icon: Plus,
-        action: () => console.log("New File"),
-      },
-      {
-        label: "New Window",
-        shortcut: "Ctrl+Shift+N",
-        icon: PlusSquare,
-        action: () => console.log("New Window"),
-      },
-      { divider: true },
-      {
-        label: "Open File...",
-        shortcut: "Ctrl+O",
-        icon: FileIcon,
-        action: () => console.log("Open File"),
-      },
-      {
-        label: "Open Folder...",
-        shortcut: "Ctrl+K Ctrl+O",
-        icon: Folder,
-        action: () => console.log("Open Folder"),
-      },
-      {
-        label: "Open Workspace...",
-        icon: Layout,
-        action: () => console.log("Open Workspace"),
-      },
-      {
-        label: "Open Recent",
-        icon: Clock,
-        submenu: [
-          { label: "Reopen Closed Editor", shortcut: "Ctrl+Shift+T" },
-          { divider: true },
-          { label: "~/projects/codefusion" },
-          { label: "~/documents/notes.md" },
-          { label: "~/downloads/example.js" },
-          { divider: true },
-          { label: "More...", icon: MoreHorizontal },
-          { divider: true },
-          { label: "Clear Recently Opened", icon: X },
-        ],
-      },
-      { divider: true },
-      {
-        label: "Add Folder to Workspace...",
-        icon: FolderPlus,
-        action: () => console.log("Add Folder to Workspace"),
-      },
-      { divider: true },
-      {
-        label: "Save",
-        shortcut: "Ctrl+S",
-        icon: Save,
-        action: () => console.log("Save"),
-      },
-      {
-        label: "Save As...",
-        shortcut: "Ctrl+Shift+S",
-        icon: Save,
-        action: () => console.log("Save As"),
-      },
-      {
-        label: "Save All",
-        shortcut: "Ctrl+K S",
-        icon: Save,
-        action: () => console.log("Save All"),
-      },
-      {
-        label: "Auto Save",
-        checked: true,
-        icon: ToggleRight,
-        action: () => console.log("Toggle Auto Save"),
-      },
-      { divider: true },
-      {
-        label: "Preferences",
-        icon: Settings,
-        submenu: [
-          { label: "Settings", shortcut: "Ctrl+," },
-          { label: "Keyboard Shortcuts", shortcut: "Ctrl+K Ctrl+S" },
-          { label: "User Snippets" },
-          { divider: true },
-          { label: "Color Theme", shortcut: "Ctrl+K Ctrl+T" },
-          { label: "File Icon Theme" },
-        ],
-      },
-      { divider: true },
-      {
-        label: "Revert File",
-        icon: RefreshCw,
-        action: () => console.log("Revert File"),
-      },
-      { divider: true },
-      {
-        label: "Close Editor",
-        shortcut: "Ctrl+F4",
-        icon: X,
-        action: () => console.log("Close Editor"),
-      },
-      {
-        label: "Close Folder",
-        shortcut: "Ctrl+K F",
-        icon: FolderMinus,
-        action: () => console.log("Close Folder"),
-      },
-      {
-        label: "Close Window",
-        shortcut: "Alt+F4",
-        icon: X,
-        action: () => console.log("Close Window"),
-      },
-      { divider: true },
-      {
-        label: "Exit",
-        action: () => console.log("Exit"),
-      },
-    ],
-  },
-  {
-    label: "Edit",
-    icon: FileIcon,
-    items: [
-      {
-        label: "Undo",
-        shortcut: "Ctrl+Z",
-        icon: RotateCcw,
-        action: () => console.log("Undo"),
-      },
-      {
-        label: "Redo",
-        shortcut: "Ctrl+Y",
-        icon: RotateCw,
-        action: () => console.log("Redo"),
-      },
-      { divider: true },
-      {
-        label: "Cut",
-        shortcut: "Ctrl+X",
-        icon: Scissors,
-        action: () => console.log("Cut"),
-      },
-      {
-        label: "Copy",
-        shortcut: "Ctrl+C",
-        icon: Copy,
-        action: () => console.log("Copy"),
-      },
-      {
-        label: "Paste",
-        shortcut: "Ctrl+V",
-        icon: Clipboard,
-        action: () => console.log("Paste"),
-      },
-      { divider: true },
-      {
-        label: "Find",
-        shortcut: "Ctrl+F",
-        icon: Search,
-        action: () => console.log("Find"),
-      },
-      {
-        label: "Replace",
-        shortcut: "Ctrl+H",
-        icon: Replace,
-        action: () => console.log("Replace"),
-      },
-    ],
-  },
-  {
-    label: "Selection",
-    icon: FileIcon,
-    items: [
-      {
-        label: "Select All",
-        shortcut: "Ctrl+A",
-        action: () => console.log("Select All"),
-      },
-      {
-        label: "Expand Selection",
-        shortcut: "Shift+Alt+Right",
-        action: () => console.log("Expand Selection"),
-      },
-      {
-        label: "Shrink Selection",
-        shortcut: "Shift+Alt+Left",
-        action: () => console.log("Shrink Selection"),
-      },
-    ],
-  },
-  {
-    label: "View",
-    icon: FileIcon,
-    items: [
-      {
-        label: "Command Palette",
-        shortcut: "Ctrl+Shift+P",
-        icon: Command,
-        action: () => console.log("Command Palette"),
-      },
-      { divider: true },
-      {
-        label: "Explorer",
-        shortcut: "Ctrl+Shift+E",
-        checked: true,
-        action: () => console.log("Explorer"),
-      },
-      {
-        label: "Search",
-        shortcut: "Ctrl+Shift+F",
-        checked: true,
-        action: () => console.log("Search"),
-      },
-      {
-        label: "Source Control",
-        shortcut: "Ctrl+Shift+G",
-        checked: false,
-        action: () => console.log("Source Control"),
-      },
-    ],
-  },
-  {
-    label: "Go",
-    icon: FileIcon,
-    items: [
-      {
-        label: "Back",
-        shortcut: "Alt+Left",
-        icon: ArrowLeft,
-        action: () => console.log("Back"),
-      },
-      {
-        label: "Forward",
-        shortcut: "Alt+Right",
-        icon: ArrowRight,
-        action: () => console.log("Forward"),
-      },
-      { divider: true },
-      {
-        label: "Go to File",
-        shortcut: "Ctrl+P",
-        action: () => console.log("Go to File"),
-      },
-      {
-        label: "Go to Symbol",
-        shortcut: "Ctrl+Shift+O",
-        action: () => console.log("Go to Symbol"),
-      },
-    ],
-  },
-  {
-    label: "Run",
-    icon: FileIcon,
-    items: [
-      {
-        label: "Start Debugging",
-        shortcut: "F5",
-        icon: Bug,
-        action: () => console.log("Start Debugging"),
-      },
-      {
-        label: "Run Without Debugging",
-        shortcut: "Ctrl+F5",
-        icon: Play,
-        action: () => console.log("Run Without Debugging"),
-      },
-      {
-        label: "Stop Debugging",
-        shortcut: "Shift+F5",
-        icon: Square,
-        action: () => console.log("Stop Debugging"),
-      },
-      { divider: true },
-      {
-        label: "Step Over",
-        shortcut: "F10",
-        icon: StepForward,
-        action: () => console.log("Step Over"),
-      },
-      {
-        label: "Step Into",
-        shortcut: "F11",
-        icon: ArrowDown,
-        action: () => console.log("Step Into"),
-      },
-      {
-        label: "Step Out",
-        shortcut: "Shift+F11",
-        icon: ArrowUp,
-        action: () => console.log("Step Out"),
-      },
-    ],
-  },
-  {
-    label: "Terminal",
-    icon: FileIcon,
-    items: [
-      {
-        label: "New Terminal",
-        shortcut: "Ctrl+`",
-        icon: Terminal,
-        action: () => console.log("New Terminal"),
-      },
-      {
-        label: "Split Terminal",
-        icon: Layout,
-        action: () => console.log("Split Terminal"),
-      },
-      { divider: true },
-      {
-        label: "Clear Terminal",
-        action: () => console.log("Clear Terminal"),
-      },
-      {
-        label: "Kill Terminal",
-        icon: Trash2,
-        action: () => console.log("Kill Terminal"),
-      },
-    ],
-  },
-  {
-    label: "Help",
-    icon: FileIcon,
-    items: [
-      {
-        label: "Welcome",
-        action: () => console.log("Welcome"),
-      },
-      {
-        label: "Documentation",
-        icon: BookOpen,
-        action: () => console.log("Documentation"),
-      },
-      { divider: true },
-      {
-        label: "Check for Updates",
-        action: () => console.log("Check for Updates"),
-      },
-      { divider: true },
-      {
-        label: "About",
-        icon: Info,
-        action: () => console.log("About"),
-      },
-    ],
-  },
-]
-
 // ScrollArea Component
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
@@ -523,7 +170,7 @@ const ScrollArea = React.forwardRef<
 ))
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
-// CodeEditor Component
+// CodeEditor Component – CodeMirror-based (no WASM)
 function CodeEditor({
   value,
   language,
@@ -537,6 +184,7 @@ function CodeEditor({
   onChange?: (value: string) => void
   readOnly?: boolean
 }) {
+  /* Map language prop to CodeMirror extensions */
   const extensions = React.useMemo(() => {
     switch (language?.toLowerCase()) {
       case "js":
@@ -550,10 +198,8 @@ function CodeEditor({
         return [html()]
       case "python":
         return [python()]
-      case "css":
-        return [css()]
       default:
-        return []
+        return [] // fallback – plain‐text
     }
   }, [language])
 
@@ -574,232 +220,6 @@ function CodeEditor({
       style={{ fontSize: 14, fontFamily: `"Fira Code", "JetBrains Mono", monospace` }}
     />
   )
-}
-
-// File Management Functions
-const useFileManager = () => {
-  const { toast } = useToast()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const folderInputRef = useRef<HTMLInputElement>(null)
-
-  const openFile = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click()
-    }
-  }
-
-  const openFolder = () => {
-    if (folderInputRef.current) {
-      folderInputRef.current.click()
-    }
-  }
-
-  const handleFileSelect = (
-    event: React.ChangeEvent<HTMLInputElement>,
-    onFileLoad: (file: File, content: string) => void,
-  ) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const content = e.target?.result as string
-        onFileLoad(file, content)
-      }
-      reader.readAsText(file)
-    }
-  }
-
-  const handleFolderSelect = (event: React.ChangeEvent<HTMLInputElement>, onFolderLoad: (files: FileList) => void) => {
-    const files = event.target.files
-    if (files) {
-      onFolderLoad(files)
-    }
-  }
-
-  const saveFile = (content: string, filename: string) => {
-    const blob = new Blob([content], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast({
-      title: "File Saved",
-      description: `${filename} has been saved successfully.`,
-    })
-  }
-
-  const saveAs = (content: string, defaultName: string, onSave: (filename: string) => void) => {
-    const filename = prompt("Enter filename:", defaultName)
-    if (filename) {
-      saveFile(content, filename)
-      onSave(filename)
-    }
-  }
-
-  return {
-    openFile,
-    openFolder,
-    handleFileSelect,
-    handleFolderSelect,
-    saveFile,
-    saveAs,
-    fileInputRef,
-    folderInputRef,
-  }
-}
-
-// Sample File Tree Data
-const sampleFileTree: FileTreeItem[] = [
-  {
-    id: "src",
-    name: "src",
-    type: "folder",
-    path: "src",
-    isOpen: true,
-    children: [
-      {
-        id: "components",
-        name: "components",
-        type: "folder",
-        path: "src/components",
-        isOpen: true,
-        children: [
-          {
-            id: "app.tsx",
-            name: "App.tsx",
-            type: "file",
-            path: "src/components/App.tsx",
-            language: "typescript",
-          },
-          {
-            id: "header.tsx",
-            name: "Header.tsx",
-            type: "file",
-            path: "src/components/Header.tsx",
-            language: "typescript",
-          },
-        ],
-      },
-      {
-        id: "hooks",
-        name: "hooks",
-        type: "folder",
-        path: "src/hooks",
-        children: [
-          {
-            id: "use-auth.ts",
-            name: "useAuth.ts",
-            type: "file",
-            path: "src/hooks/useAuth.ts",
-            language: "typescript",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "package.json",
-    name: "package.json",
-    type: "file",
-    path: "package.json",
-    language: "json",
-  },
-]
-
-// Sample File Contents
-const sampleFileContents: Record<string, { content: string; language: string }> = {
-  "src/components/App.tsx": {
-    language: "typescript",
-    content: `import React, { useState } from 'react';
-
-function App() {
-  const [count, setCount] = useState(0);
-
-  return (
-    <div className="App">
-      <h1>Welcome to CodeFusion</h1>
-      <p>You clicked {count} times</p>
-      <button onClick={() => setCount(count + 1)}>
-        Click me
-      </button>
-    </div>
-  );
-}
-
-export default App;`,
-  },
-  "src/components/Header.tsx": {
-    language: "typescript",
-    content: `import React from 'react';
-
-function Header() {
-  return (
-    <header className="app-header">
-      <nav>
-        <ul>
-          <li><a href="/">Home</a></li>
-          <li><a href="/about">About</a></li>
-          <li><a href="/contact">Contact</a></li>
-        </ul>
-      </nav>
-    </header>
-  );
-}
-
-export default Header;`,
-  },
-  "src/hooks/useAuth.ts": {
-    language: "typescript",
-    content: `import { useState, useEffect } from 'react';
-
-export function useAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = localStorage.getItem('user');
-        if (user) {
-          setUser(JSON.parse(user));
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        console.error('Auth error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  return { user, isAuthenticated, loading };
-}`,
-  },
-  "package.json": {
-    language: "json",
-    content: `{
-  "name": "codefusion-app",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "typescript": "^4.9.5"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test"
-  }
-}`,
-  },
 }
 
 // VS Code Menu Component
@@ -1437,6 +857,181 @@ function FileExplorer({
   )
 }
 
+// Enhanced File Explorer with mkdir and touch
+function EnhancedFileExplorer({
+  onFileSelect,
+  onNewFile,
+  onNewFolder,
+  onRefresh,
+}: {
+  onFileSelect: (path: string) => void
+  onNewFile: (path: string, content: string) => void
+  onNewFolder: (path: string) => void
+  onRefresh: () => void
+}) {
+  const [fileTree, setFileTree] = useState<FileTreeItem[]>(sampleFileTree)
+  const { toast } = useToast()
+
+  const toggleFolder = (path: string) => {
+    const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
+      return items.map((item) => {
+        if (item.path === path) {
+          return { ...item, isOpen: !item.isOpen }
+        } else if (item.children) {
+          return { ...item, children: updateTree(item.children) }
+        }
+        return item
+      })
+    }
+    setFileTree(updateTree(fileTree))
+  }
+
+  const createFile = (path: string, content = "") => {
+    const pathParts = path.split("/")
+    const filename = pathParts.pop()!
+    const parentPath = pathParts.join("/") || ""
+    const newFile: FileTreeItem = {
+      id: `file-${Date.now()}`,
+      name: filename,
+      type: "file",
+      path: path,
+      language: filename.split(".").pop() || "text",
+    }
+
+    const updateTree = (items: FileTreeItem[], parentPath: string): FileTreeItem[] => {
+      return items.map((item) => {
+        if (item.path === parentPath && item.type === "folder") {
+          return {
+            ...item,
+            isOpen: true,
+            children: [...(item.children || []), newFile],
+          }
+        } else if (item.children) {
+          return { ...item, children: updateTree(item.children, parentPath) }
+        }
+        return item
+      })
+    }
+
+    setFileTree(parentPath ? updateTree(fileTree, parentPath) : [...fileTree, newFile])
+    onNewFile(path, content)
+    toast({ title: "File Created", description: `Created file: ${path}` })
+  }
+
+  const createFolder = (path: string) => {
+    const pathParts = path.split("/")
+    const folderName = pathParts.pop()!
+    const parentPath = pathParts.join("/") || ""
+    const newFolder: FileTreeItem = {
+      id: `folder-${Date.now()}`,
+      name: folderName,
+      type: "folder",
+      path: path,
+      children: [],
+      isOpen: false,
+    }
+
+    const updateTree = (items: FileTreeItem[], parentPath: string): FileTreeItem[] => {
+      return items.map((item) => {
+        if (item.path === parentPath && item.type === "folder") {
+          return {
+            ...item,
+            isOpen: true,
+            children: [...(item.children || []), newFolder],
+          }
+        } else if (item.children) {
+          return { ...item, children: updateTree(item.children, parentPath) }
+        }
+        return item
+      })
+    }
+
+    setFileTree(parentPath ? updateTree(fileTree, parentPath) : [...fileTree, newFolder])
+    onNewFolder(path)
+    toast({ title: "Folder Created", description: `Created folder: ${path}` })
+  }
+
+  const renderFileTree = (items: FileTreeItem[], level = 0) => {
+    return items.map((item) => (
+      <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
+        <div
+          className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm ${level === 0 ? "mt-1" : ""}`}
+          onClick={() => {
+            if (item.type === "folder") {
+              toggleFolder(item.path)
+            } else {
+              onFileSelect(item.path)
+            }
+          }}
+        >
+          {item.type === "folder" ? (
+            <>
+              {item.isOpen ? (
+                <ChevronDown className="h-4 w-4 mr-1 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-4 w-4 mr-1 text-gray-400" />
+              )}
+              <Folder className="h-4 w-4 mr-1 text-blue-400" />
+              <span>{item.name}</span>
+            </>
+          ) : (
+            <>
+              <FileText className="h-4 w-4 mr-1 text-gray-400" />
+              <span>{item.name}</span>
+            </>
+          )}
+        </div>
+        {item.type === "folder" && item.isOpen && item.children && (
+          <div>{renderFileTree(item.children, level + 1)}</div>
+        )}
+      </div>
+    ))
+  }
+
+  return (
+    <div className="h-full bg-[#252526] text-gray-300 text-sm overflow-y-auto">
+      <div className="p-2 font-semibold border-b border-[#3c3c3c] flex items-center justify-between">
+        <span>EXPLORER</span>
+        <div className="flex items-center">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createFile(`src/untitled-${Date.now()}.js`)}>
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New File</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createFolder(`src/folder-${Date.now()}`)}>
+                  <FolderPlus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New Folder</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRefresh}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+      <ScrollArea className="h-full">
+        <div className="p-2">{renderFileTree(fileTree)}</div>
+      </ScrollArea>
+    </div>
+  )
+}
+
 // Terminal Component
 function TerminalComponent() {
   const [commandHistory, setCommandHistory] = useState<string[]>([
@@ -1514,6 +1109,133 @@ function TerminalComponent() {
   )
 }
 
+// Enhanced Terminal Component
+function EnhancedTerminalComponent({
+  onNewFile,
+  onNewFolder,
+}: {
+  onNewFile: (path: string, content: string) => void
+  onNewFolder: (path: string) => void
+}) {
+  const [commandHistory, setCommandHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem("terminalHistory")
+    return saved
+      ? JSON.parse(saved)
+      : ["Welcome to CodeFusion Terminal", "Type 'help' to see available commands"]
+  })
+  const [currentCommand, setCurrentCommand] = useState("")
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const terminalEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [commandHistory])
+
+  useEffect(() => {
+    localStorage.setItem("terminalHistory", JSON.stringify(commandHistory))
+  }, [commandHistory])
+
+  const executeCommand = (cmd: string) => {
+    if (cmd.trim() === "") return
+
+    setCommandHistory((prev) => [...prev, `$ ${cmd}`])
+    const command = cmd.trim().toLowerCase()
+
+    if (command === "help") {
+      setCommandHistory((prev) => [
+        ...prev,
+        "Available commands: help, clear, ls, pwd, echo, date, npm, git, mkdir, touch",
+      ])
+    } else if (command === "clear") {
+      setCommandHistory(["Terminal cleared", "Type 'help' to see available commands"])
+    } else if (command === "ls") {
+      setCommandHistory((prev) => [...prev, "src/ public/ package.json tsconfig.json README.md"])
+    } else if (command === "pwd") {
+      setCommandHistory((prev) => [...prev, "/home/user/codefusion"])
+    } else if (command.startsWith("echo ")) {
+      const message = cmd.substring(5)
+      setCommandHistory((prev) => [...prev, message])
+    } else if (command === "date") {
+      setCommandHistory((prev) => [...prev, new Date().toString()])
+    } else if (command === "npm start") {
+      setCommandHistory((prev) => [...prev, "Starting development server...", "Local: http://localhost:3000"])
+    } else if (command === "git status") {
+      setCommandHistory((prev) => [
+        ...prev,
+        "On branch main",
+        "Your branch is up to date with 'origin/main'.",
+        "nothing to commit, working tree clean",
+      ])
+    } else if (command.startsWith("mkdir ")) {
+      const folderName = cmd.substring(6).trim()
+      if (folderName) {
+        onNewFolder(`src/${folderName}`)
+        setCommandHistory((prev) => [...prev, `Created directory: src/${folderName}`])
+      } else {
+        setCommandHistory((prev) => [...prev, "mkdir: missing directory name"])
+      }
+    } else if (command.startsWith("touch ")) {
+      const fileName = cmd.substring(6).trim()
+      if (fileName) {
+        onNewFile(`src/${fileName}`, "")
+        setCommandHistory((prev) => [...prev, `Created file: src/${fileName}`])
+      } else {
+        setCommandHistory((prev) => [...prev, "touch: missing file name"])
+      }
+    } else {
+      setCommandHistory((prev) => [...prev, `Command not found: ${cmd}. Type 'help' for available commands.`])
+    }
+    setCurrentCommand("")
+    setHistoryIndex(-1)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      executeCommand(currentCommand)
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1)
+      if (newIndex >= 0 && commandHistory[newIndex].startsWith("$ ")) {
+        setHistoryIndex(newIndex)
+        setCurrentCommand(commandHistory[newIndex].substring(2))
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault()
+      const newIndex = Math.max(historyIndex - 1, -1)
+      setHistoryIndex(newIndex)
+      setCurrentCommand(newIndex >= 0 && commandHistory[newIndex].startsWith("$ ") ? commandHistory[newIndex].substring(2) : "")
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[#1e1e1e] text-white font-mono text-sm p-2">
+      <div className="flex-1 overflow-auto">
+        {commandHistory.map((line, index) => (
+          <div key={index} className="whitespace-pre-wrap mb-1">
+            {line}
+          </div>
+        ))}
+        <div ref={terminalEndRef} />
+      </div>
+      <div className="flex items-center mt-2">
+        <span className="text-green-400 mr-2">$</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={currentCommand}
+          onChange={(e) => setCurrentCommand(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent outline-none border-none text-white"
+          autoFocus
+          placeholder="Type a command..."
+        />
+      </div>
+    </div>
+  )
+}
+
 // Problems Panel Component
 function ProblemsPanel() {
   const problems = [
@@ -1550,6 +1272,229 @@ function ProblemsPanel() {
       ))}
     </div>
   )
+}
+
+const useFileManager = () => {
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+
+  const openFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
+  const openFolder = () => {
+    if (folderInputRef.current) {
+      folderInputRef.current.click()
+    }
+  }
+
+  const handleFileSelect = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    onFileLoad: (file: File, content: string) => void,
+  ) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = e.target?.result as string
+        onFileLoad(file, content)
+      }
+      reader.readAsText(file)
+    }
+  }
+
+  const handleFolderSelect = (event: React.ChangeEvent<HTMLInputElement>, onFolderLoad: (files: FileList) => void) => {
+    const files = event.target.files
+    if (files) {
+      onFolderLoad(files)
+    }
+  }
+
+  const saveFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast({
+      title: "File Saved",
+      description: `${filename} has been saved successfully.`,
+    })
+  }
+
+  const saveAs = (content: string, defaultName: string, onSave: (filename: string) => void) => {
+    const filename = prompt("Enter filename:", defaultName)
+    if (filename) {
+      saveFile(content, filename)
+      onSave(filename)
+    }
+  }
+
+  return {
+    openFile,
+    openFolder,
+    handleFileSelect,
+    handleFolderSelect,
+    saveFile,
+    saveAs,
+    fileInputRef,
+    folderInputRef,
+  }
+}
+
+const sampleFileTree: FileTreeItem[] = [
+  {
+    id: "src",
+    name: "src",
+    type: "folder",
+    path: "src",
+    isOpen: true,
+    children: [
+      {
+        id: "components",
+        name: "components",
+        type: "folder",
+        path: "src/components",
+        isOpen: true,
+        children: [
+          {
+            id: "app.tsx",
+            name: "App.tsx",
+            type: "file",
+            path: "src/components/App.tsx",
+            language: "typescript",
+          },
+          {
+            id: "header.tsx",
+            name: "Header.tsx",
+            type: "file",
+            path: "src/components/Header.tsx",
+            language: "typescript",
+          },
+        ],
+      },
+      {
+        id: "hooks",
+        name: "hooks",
+        type: "folder",
+        path: "src/hooks",
+        children: [
+          {
+            id: "use-auth.ts",
+            name: "useAuth.ts",
+            type: "file",
+            path: "src/hooks/useAuth.ts",
+            language: "typescript",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "package.json",
+    name: "package.json",
+    type: "file",
+    path: "package.json",
+    language: "json",
+  },
+]
+
+const sampleFileContents: Record<string, { content: string; language: string }> = {
+  "src/components/App.tsx": {
+    language: "typescript",
+    content: `import React, { useState } from 'react';
+
+function App() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div className="App">
+      <h1>Welcome to CodeFusion</h1>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>
+        Click me
+      </button>
+    </div>
+  );
+}
+
+export default App;`,
+  },
+  "src/components/Header.tsx": {
+    language: "typescript",
+    content: `import React from 'react';
+
+function Header() {
+  return (
+    <header className="app-header">
+      <nav>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+  );
+}
+
+export default Header;`,
+  },
+  "src/hooks/useAuth.ts": {
+    language: "typescript",
+    content: `import { useState, useEffect } from 'react';
+
+export function useAuth() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const user = localStorage.getItem('user');
+        if (user) {
+          setUser(JSON.parse(user));
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  return { user, isAuthenticated, loading };
+}`,
+  },
+  "package.json": {
+    language: "json",
+    content: `{
+  "name": "codefusion-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^4.9.5"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test"
+  }
+}`,
+  },
 }
 
 // Main VS Code Editor Component
@@ -2161,6 +2106,7 @@ export const VSCodeEditor = forwardRef<
     </div>
   )
 })
+
 // Chat Panel Component
 function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: string) => void }) {
   const [messages, setMessages] = useState<Message[]>([
@@ -2430,8 +2376,6 @@ function fastFunction(arr) {
   )
 }
 
-// ⬇️ append to the bottom of the file
-// -----------------------------------------------------------------
 /**
  * Top-level AI Assistant screen that combines:
  *  – Code editor (with VS-Code-like UX)
@@ -2472,4 +2416,3 @@ export function AIAssistant() {
 }
 // default export for backwards compatibility
 export default AIAssistant
-// -----------------------------------------------------------------
