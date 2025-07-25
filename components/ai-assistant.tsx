@@ -79,6 +79,8 @@ import { python } from "@codemirror/lang-python"
 import { css } from "@codemirror/lang-css"
 import { useToast } from "@/components/ui/use-toast"
 import VSCodeArchitecture from "@/components/ui/vscode-architecture"
+import { useAppState } from "@/contexts/app-state-context"
+import type { EditorTab, ChatMessage } from "@/contexts/app-state-context"
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -103,13 +105,6 @@ const useRequireAuth = () => ({
 })
 
 // Types and Interfaces
-interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  code?: { language: string; value: string }
-}
-
 interface MenuItem {
   label: string
   shortcut?: string
@@ -125,15 +120,6 @@ interface MenuCategory {
   label: string
   icon: React.ElementType
   items: MenuItem[]
-}
-
-interface EditorTab {
-  id: string
-  name: string
-  content: string
-  language?: string
-  path?: string
-  isDirty?: boolean
 }
 
 interface FileTreeItem {
@@ -1508,17 +1494,19 @@ export const VSCodeEditor = forwardRef<
   },
   {
     onCodeChange?: (code: string) => void
-    initialState?: any
   }
->(({ onCodeChange, initialState }, ref) => {
-  const [activeTab, setActiveTab] = useState<string | null>(null)
-  const [tabs, setTabs] = useState<EditorTab[]>(initialState?.openFiles || [])
-  const [showExplorer, setShowExplorer] = useState(true)
-  const [showTerminal, setShowTerminal] = useState(false)
-  const [showProblems, setShowProblems] = useState(false)
-  const [activePanel, setActivePanel] = useState<string | null>("terminal")
+>(({ onCodeChange }, ref) => {
+  const {
+    state: {
+      aiAssistant: { editorTabs, activeEditorTab, showExplorer, showTerminal, showProblems, activePanel, terminalHeight },
+    },
+    updateAIAssistant,
+    addEditorTab,
+    updateEditorTab,
+    removeEditorTab,
+  } = useAppState()
+
   const [activeIcon, setActiveIcon] = useState("explorer")
-  const [terminalHeight, setTerminalHeight] = useState(200)
   const [isResizing, setIsResizing] = useState(false)
   const [startY, setStartY] = useState(0)
   const [autoSave, setAutoSave] = useState(true)
@@ -1527,20 +1515,13 @@ export const VSCodeEditor = forwardRef<
   const fileManager = useFileManager()
   const { toast } = useToast()
 
-  // Restore active file from initial state
-  useEffect(() => {
-    if (initialState?.activeFile && tabs.length > 0) {
-      setActiveTab(initialState.activeFile)
-    }
-  }, [initialState, tabs])
-
   // Auto-save functionality
   useEffect(() => {
-    if (autoSave && activeTab) {
+    if (autoSave && activeEditorTab) {
       const interval = setInterval(() => {
-        const currentTab = tabs.find((tab) => tab.id === activeTab)
+        const currentTab = editorTabs.find((tab) => tab.id === activeEditorTab)
         if (currentTab && currentTab.isDirty) {
-          setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, isDirty: false } : tab)))
+          updateEditorTab(activeEditorTab, { isDirty: false })
           toast({
             title: "Auto Saved",
             description: `${currentTab.name} has been auto-saved.`,
@@ -1549,12 +1530,12 @@ export const VSCodeEditor = forwardRef<
       }, 5000)
       return () => clearInterval(interval)
     }
-  }, [autoSave, activeTab, tabs, toast])
+  }, [autoSave, activeEditorTab, editorTabs, toast, updateEditorTab])
 
   const handleFileSelect = (path: string) => {
-    const existingTab = tabs.find((tab) => tab.path === path)
+    const existingTab = editorTabs.find((tab) => tab.path === path)
     if (existingTab) {
-      setActiveTab(existingTab.id)
+      updateAIAssistant({ activeEditorTab: existingTab.id })
       return
     }
 
@@ -1569,8 +1550,7 @@ export const VSCodeEditor = forwardRef<
       path: path,
     }
 
-    setTabs([...tabs, newTab])
-    setActiveTab(newTab.id)
+    addEditorTab(newTab)
 
     // Add to recent files
     setRecentFiles((prev) => [path, ...prev.filter((p) => p !== path)].slice(0, 10))
@@ -1578,26 +1558,20 @@ export const VSCodeEditor = forwardRef<
 
   const closeTab = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const newTabs = tabs.filter((tab) => tab.id !== id)
-    if (newTabs.length === 0) {
-      setActiveTab(null)
-    } else if (id === activeTab) {
-      setActiveTab(newTabs[newTabs.length - 1].id)
-    }
-    setTabs(newTabs)
+    removeEditorTab(id)
   }
 
   const handleContentChange = (value: string, tabId: string) => {
-    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, content: value, isDirty: true } : tab)))
+    updateEditorTab(tabId, { content: value, isDirty: true })
     onCodeChange?.(value)
   }
 
   const insertCodeIntoEditor = (code: string, language = "javascript") => {
-    if (activeTab) {
-      const currentTab = tabs.find((tab) => tab.id === activeTab)
+    if (activeEditorTab) {
+      const currentTab = editorTabs.find((tab) => tab.id === activeEditorTab)
       if (currentTab) {
         const newContent = currentTab.content + "\n\n" + code
-        handleContentChange(newContent, activeTab)
+        handleContentChange(newContent, activeEditorTab)
       }
     } else {
       const newTab: EditorTab = {
@@ -1606,8 +1580,7 @@ export const VSCodeEditor = forwardRef<
         content: code,
         language: language,
       }
-      setTabs([...tabs, newTab])
-      setActiveTab(newTab.id)
+      addEditorTab(newTab)
     }
   }
 
@@ -1618,8 +1591,7 @@ export const VSCodeEditor = forwardRef<
       content: "// Start coding here\n\n",
       language: "javascript",
     }
-    setTabs([...tabs, newTab])
-    setActiveTab(newTab.id)
+    addEditorTab(newTab)
   }
 
   const createNewFolder = () => {
@@ -1637,35 +1609,35 @@ export const VSCodeEditor = forwardRef<
   }
 
   const handleSave = () => {
-    const currentTab = tabs.find((tab) => tab.id === activeTab)
+    const currentTab = editorTabs.find((tab) => tab.id === activeEditorTab)
     if (currentTab) {
       if (currentTab.path) {
         fileManager.saveFile(currentTab.content, currentTab.name)
-        setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, isDirty: false } : tab)))
+        updateEditorTab(activeEditorTab!, { isDirty: false })
       } else {
         fileManager.saveAs(currentTab.content, currentTab.name, (filename) => {
-          setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, name: filename, isDirty: false } : tab)))
+          updateEditorTab(activeEditorTab!, { name: filename, isDirty: false })
         })
       }
     }
   }
 
   const handleSaveAs = () => {
-    const currentTab = tabs.find((tab) => tab.id === activeTab)
+    const currentTab = editorTabs.find((tab) => tab.id === activeEditorTab)
     if (currentTab) {
       fileManager.saveAs(currentTab.content, currentTab.name, (filename) => {
-        setTabs(tabs.map((tab) => (tab.id === activeTab ? { ...tab, name: filename, isDirty: false } : tab)))
+        updateEditorTab(activeEditorTab!, { name: filename, isDirty: false })
       })
     }
   }
 
   const handleSaveAll = () => {
-    tabs.forEach((tab) => {
+    editorTabs.forEach((tab) => {
       if (tab.isDirty) {
         fileManager.saveFile(tab.content, tab.name)
+        updateEditorTab(tab.id, { isDirty: false })
       }
     })
-    setTabs(tabs.map((tab) => ({ ...tab, isDirty: false })))
     toast({
       title: "All Files Saved",
       description: "All modified files have been saved successfully.",
@@ -1681,8 +1653,7 @@ export const VSCodeEditor = forwardRef<
       language: language,
       path: file.name,
     }
-    setTabs([...tabs, newTab])
-    setActiveTab(newTab.id)
+    addEditorTab(newTab)
     toast({
       title: "File Opened",
       description: `${file.name} has been opened successfully.`,
@@ -1715,7 +1686,7 @@ export const VSCodeEditor = forwardRef<
     onOpenRecent: () => toast({ title: "Open Recent", description: "Showing recent files..." }),
     onAddFolderToWorkspace: () => toast({ title: "Add Folder", description: "Adding folder to workspace..." }),
     onRevertFile: () => toast({ title: "Revert File", description: "File reverted to last saved version." }),
-    onCloseEditor: () => activeTab && closeTab(activeTab, { stopPropagation: () => {} } as React.MouseEvent),
+    onCloseEditor: () => activeEditorTab && closeTab(activeEditorTab, { stopPropagation: () => {} } as React.MouseEvent),
     onCloseFolder: () => toast({ title: "Close Folder", description: "Folder closed." }),
     onCloseWindow: () => toast({ title: "Close Window", description: "Window closed." }),
     onExit: () => toast({ title: "Exit", description: "Exiting application..." }),
@@ -1730,7 +1701,7 @@ export const VSCodeEditor = forwardRef<
     onExpandSelection: () => toast({ title: "Expand Selection", description: "Selection expanded." }),
     onShrinkSelection: () => toast({ title: "Shrink Selection", description: "Selection shrunk." }),
     onCommandPalette: () => toast({ title: "Command Palette", description: "Opening command palette..." }),
-    onToggleExplorer: () => setShowExplorer(!showExplorer),
+    onToggleExplorer: () => updateAIAssistant({ showExplorer: !showExplorer }),
     onToggleSearch: () => toast({ title: "Search", description: "Toggling search panel..." }),
     onToggleSourceControl: () => toast({ title: "Source Control", description: "Toggling source control..." }),
     onGoBack: () => toast({ title: "Go Back", description: "Navigating back..." }),
@@ -1743,10 +1714,10 @@ export const VSCodeEditor = forwardRef<
     onStepOver: () => toast({ title: "Step Over", description: "Stepping over..." }),
     onStepInto: () => toast({ title: "Step Into", description: "Stepping into..." }),
     onStepOut: () => toast({ title: "Step Out", description: "Stepping out..." }),
-    onNewTerminal: () => setShowTerminal(true),
+    onNewTerminal: () => updateAIAssistant({ showTerminal: true }),
     onSplitTerminal: () => toast({ title: "Split Terminal", description: "Splitting terminal..." }),
     onClearTerminal: () => toast({ title: "Clear Terminal", description: "Terminal cleared." }),
-    onKillTerminal: () => setShowTerminal(false),
+    onKillTerminal: () => updateAIAssistant({ showTerminal: false }),
     onShowWelcome: () => toast({ title: "Welcome", description: "Showing welcome page..." }),
     onShowDocumentation: () => toast({ title: "Documentation", description: "Opening documentation..." }),
     onCheckUpdates: () => toast({ title: "Check Updates", description: "Checking for updates..." }),
@@ -1757,35 +1728,25 @@ export const VSCodeEditor = forwardRef<
   useImperativeHandle(ref, () => ({
     insertCode: insertCodeIntoEditor,
     getCurrentCode: () => {
-      const currentTab = tabs.find((tab) => tab.id === activeTab)
+      const currentTab = editorTabs.find((tab) => tab.id === activeEditorTab)
       return currentTab?.content || ""
     },
-    getOpenFiles: () => tabs,
-    getActiveFile: () => activeTab,
-    restoreState: (state: any) => {
-      if (state.openFiles) {
-        setTabs(state.openFiles)
-      }
-      if (state.activeFile) {
-        setActiveTab(state.activeFile)
-      }
-    },
+    getOpenFiles: () => editorTabs,
+    getActiveFile: () => activeEditorTab,
   }))
 
   const toggleSidebar = (icon: string) => {
     if (icon === "explorer") {
-      setShowExplorer(!showExplorer)
+      updateAIAssistant({ showExplorer: !showExplorer })
     }
     setActiveIcon(icon)
   }
 
   const togglePanel = (panel: string) => {
     if (panel === "terminal") {
-      setShowTerminal(!showTerminal)
-      setActivePanel("terminal")
+      updateAIAssistant({ showTerminal: !showTerminal, activePanel: "terminal" })
     } else if (panel === "problems") {
-      setShowProblems(!showProblems)
-      setActivePanel("problems")
+      updateAIAssistant({ showProblems: !showProblems, activePanel: "problems" })
     }
   }
 
@@ -1798,7 +1759,7 @@ export const VSCodeEditor = forwardRef<
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return
       const deltaY = startY - e.clientY
-      setTerminalHeight((prev) => Math.min(Math.max(prev + deltaY, 100), 500))
+      updateAIAssistant({ terminalHeight: Math.min(Math.max(terminalHeight + deltaY, 100), 500) })
       setStartY(e.clientY)
     }
 
@@ -1815,7 +1776,7 @@ export const VSCodeEditor = forwardRef<
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [isResizing, startY])
+  }, [isResizing, startY, terminalHeight, updateAIAssistant])
 
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] border rounded-md overflow-hidden">
@@ -1952,13 +1913,13 @@ export const VSCodeEditor = forwardRef<
           <div className="flex items-center border-b border-[#252526] bg-[#252526]">
             <ScrollArea orientation="horizontal" className="w-full">
               <div className="flex">
-                {tabs.map((tab) => (
+                {editorTabs.map((tab) => (
                   <button
                     key={tab.id}
                     className={`flex items-center h-9 px-3 border-r border-[#252526] ${
-                      activeTab === tab.id ? "bg-[#1e1e1e]" : "bg-[#2d2d2d] hover:bg-[#2a2a2a]"
+                      activeEditorTab === tab.id ? "bg-[#1e1e1e]" : "bg-[#2d2d2d] hover:bg-[#2a2a2a]"
                     }`}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => updateAIAssistant({ activeEditorTab: tab.id })}
                   >
                     <FileText className="h-4 w-4 mr-2 text-blue-400" />
                     <span className="mr-2">
@@ -1989,9 +1950,9 @@ export const VSCodeEditor = forwardRef<
 
           {/* Editor Content */}
           <div className="flex-1 overflow-hidden">
-            {activeTab ? (
-              <Tabs value={activeTab} className="h-full">
-                {tabs.map((tab) => (
+            {activeEditorTab ? (
+              <Tabs value={activeEditorTab} className="h-full">
+                {editorTabs.map((tab) => (
                   <TabsContent key={tab.id} value={tab.id} className="h-full">
                     <CodeEditor
                       value={tab.content}
@@ -2063,8 +2024,7 @@ export const VSCodeEditor = forwardRef<
                       size="icon"
                       className="h-9 w-9 rounded-none"
                       onClick={() => {
-                        setShowTerminal(false)
-                        setShowProblems(false)
+                        updateAIAssistant({ showTerminal: false, showProblems: false })
                       }}
                     >
                       <X className="h-4 w-4" />
@@ -2095,7 +2055,7 @@ export const VSCodeEditor = forwardRef<
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-4">
-              <span>{activeTab ? tabs.find((t) => t.id === activeTab)?.language || "JavaScript" : ""}</span>
+              <span>{activeEditorTab ? editorTabs.find((t) => t.id === activeEditorTab)?.language || "JavaScript" : ""}</span>
               <span>UTF-8</span>
               <span>LF</span>
               <span>Ln 1, Col 1</span>
@@ -2109,15 +2069,14 @@ export const VSCodeEditor = forwardRef<
 
 // Chat Panel Component
 function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: string) => void }) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Hi! I'm your AI coding assistant. I can help you write, debug, and optimize code. What would you like to work on?",
+  const {
+    state: {
+      aiAssistant: { chatMessages, chatInput },
     },
-  ])
-  const [input, setInput] = useState("")
+    updateAIAssistant,
+    addChatMessage,
+  } = useAppState()
+
   const [isLoading, setIsLoading] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -2129,9 +2088,9 @@ function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: st
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [chatMessages])
 
-  const generateAIResponse = (userInput: string): Message => {
+  const generateAIResponse = (userInput: string): ChatMessage => {
     const lowerInput = userInput.toLowerCase()
 
     if (lowerInput.includes("function") || lowerInput.includes("create") || lowerInput.includes("write")) {
@@ -2283,22 +2242,22 @@ function fastFunction(arr) {
   }
 
   const sendMessage = async () => {
-    if (!input.trim()) return
+    if (!chatInput.trim()) return
 
     setIsLoading(true)
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: chatInput,
     }
 
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
+    addChatMessage(userMessage)
+    updateAIAssistant({ chatInput: "" })
 
     // Simulate AI response (replace with actual API call later)
     setTimeout(() => {
-      const aiResponse = generateAIResponse(input)
-      setMessages((prev) => [...prev, aiResponse])
+      const aiResponse = generateAIResponse(chatInput)
+      addChatMessage(aiResponse)
       setIsLoading(false)
     }, 1500)
   }
@@ -2318,7 +2277,7 @@ function fastFunction(arr) {
   return (
     <div className="flex flex-col h-full bg-[#252526] text-white">
       <div className="flex-1 overflow-y-auto p-4">
-        {messages.map((message) => (
+        {chatMessages.map((message) => (
           <div key={message.id} className={`mb-4 ${message.role === "user" ? "text-right" : ""}`}>
             <div
               className={`inline-block rounded-lg p-3 max-w-[80%] break-words ${
@@ -2329,7 +2288,7 @@ function fastFunction(arr) {
             </div>
             {message.code && (
               <div className="relative mt-2 rounded-md overflow-hidden">
-                <CodeEditor value={message.code.value} language={message.code.language} height="200px" readOnly />
+                <CodeEditor value={message.code.value} language={message.code.language || "javascript"} height="200px" readOnly />
                 <div className="absolute top-2 right-2 flex gap-2">
                   <Button
                     variant="outline"
@@ -2342,7 +2301,7 @@ function fastFunction(arr) {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => handleInsert(message.code!.value, message.code!.language)}
+                    onClick={() => handleInsert(message.code!.value, message.code!.language || "javascript")}
                   >
                     <FileCode2 className="h-4 w-4" />
                   </Button>
@@ -2359,8 +2318,8 @@ function fastFunction(arr) {
             type="text"
             className="flex-1 bg-[#333333] text-white border border-[#3c3c3c] rounded-md py-2 px-3 outline-none"
             placeholder="Ask me anything..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={chatInput}
+            onChange={(e) => updateAIAssistant({ chatInput: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 sendMessage()
@@ -2397,9 +2356,6 @@ export function AIAssistant() {
       <div className="lg:col-span-8 h-full">
         <VSCodeEditor
           ref={editorRef as any} // satisfy TS
-          onCodeChange={() => {
-            /* TODO: dispatch to global store for real-time sync */
-          }}
         />
       </div>
 
