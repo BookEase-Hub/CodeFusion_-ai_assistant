@@ -148,6 +148,32 @@ export function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="lg:col-span-4">
               <CardHeader>
+                <CardTitle>Code Analyzer</CardTitle>
+                <CardDescription>Get instant feedback on your code quality</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  The Code Analyzer helps you improve your code by identifying potential issues and suggesting improvements.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 bg-transparent"
+                  onClick={() => {
+                    if (requireAuth("Code Analyzer")) {
+                      router.push("/code-analyzer");
+                    }
+                  }}
+                >
+                  Open Code Analyzer
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+            <Card className="lg:col-span-3">
+              <CardHeader>
                 <CardTitle>Recent Projects</CardTitle>
                 <CardDescription>Your most recently updated projects</CardDescription>
               </CardHeader>
