@@ -3,10 +3,10 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/contexts/auth-context"
 import { AppStateProvider } from "@/contexts/app-state-context"
 import { Toaster } from "@/components/ui/toaster"
 import AppLayout from "@/components/app-layout"
+import { SessionProvider } from "next-auth/react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -25,12 +25,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AuthProvider>
+          <SessionProvider>
             <AppStateProvider>
               <AppLayout>{children}</AppLayout>
               <Toaster />
             </AppStateProvider>
-          </AuthProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

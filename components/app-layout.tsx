@@ -31,7 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/contexts/auth-context"
+import { useSession, signOut } from "next-auth/react"
 import { useRequireAuth } from "@/hooks/use-require-auth"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -60,7 +60,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
-  const { user, isAuthenticated, logout } = useAuth()
+  const { data: session } = useSession()
   const { requireAuth } = useRequireAuth()
   const { toast } = useToast()
 
@@ -85,8 +85,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
   const handleLogout = () => {
     setShowLogoutConfirm(false)
-    logout()
-    router.push("/login")
+    signOut({ callbackUrl: "/login" })
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",
@@ -155,20 +154,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={user?.avatar || "/placeholder.svg?height=32&width=32"}
-                      alt={user?.name || "User"}
+                      src={session?.user?.image || "/placeholder.svg?height=32&width=32"}
+                      alt={session?.user?.name || "User"}
                     />
-                    <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                    <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {isAuthenticated ? (
+                {session ? (
                   <>
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{user?.name}</p>
-                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                        <p className="font-medium">{session?.user?.name}</p>
+                        <p className="text-sm text-muted-foreground">{session?.user?.email}</p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
@@ -191,7 +190,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => requireAuth()}>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/login")}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Sign In</span>
                   </DropdownMenuItem>
@@ -230,7 +229,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   </li>
                 )
               })}
-              {isAuthenticated ? (
+              {session ? (
                 <>
                   <li>
                     <button
@@ -264,7 +263,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <li>
                   <button
                     className="flex w-full items-center gap-2 p-2 rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={() => requireAuth()}
+                    onClick={() => router.push("/login")}
                   >
                     <User className="h-5 w-5" />
                     Sign In
