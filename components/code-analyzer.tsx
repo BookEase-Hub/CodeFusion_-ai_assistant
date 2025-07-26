@@ -90,7 +90,7 @@ export const CodeAnalyzer: React.FC = () => {
               </div>
             )}
             {!isLoading && !analysis && (
-              <p className="text-muted-foreground">Click "Analyze Code" to see the results.</p>
+              <p className="text-muted-foreground">Click &quot;Analyze Code&quot; to see the results.</p>
             )}
           </ScrollArea>
         </div>

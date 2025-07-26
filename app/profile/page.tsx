@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import Image from "next/image"
 
 export default function ProfilePage() {
   const { user, updateProfile, updateAvatar } = useAuth()
@@ -183,7 +184,7 @@ export default function ProfilePage() {
                   <AvatarImage src={user.avatar || "/placeholder.svg?height=96&width=96"} alt={user.name} />
                   <AvatarFallback className="text-2xl">{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className=".flex .flex-col .sm:flex-row .gap-2">
                   <Button variant="outline" asChild>
                     <label htmlFor="avatar-upload" className="cursor-pointer">
                       <Camera className="mr-2 h-4 w-4" />
@@ -370,12 +371,13 @@ export default function ProfilePage() {
             <div className="mt-4 max-h-[60vh] overflow-hidden">
               {uploadedImage && (
                 <ReactCrop crop={crop} onChange={(c) => setCrop(c)} circularCrop aspect={1}>
-                  <img
+                  <Image
                     ref={imageRef}
                     src={uploadedImage || "/placeholder.svg"}
                     alt="Avatar preview"
                     className="max-w-full max-h-[50vh] object-contain"
-                    crossOrigin="anonymous"
+                    width={500}
+                    height={500}
                   />
                 </ReactCrop>
               )}

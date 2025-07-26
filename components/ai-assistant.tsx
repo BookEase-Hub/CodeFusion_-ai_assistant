@@ -154,7 +154,7 @@ const ScrollArea = React.forwardRef<
     <ScrollAreaPrimitive.Corner />
   </ScrollAreaPrimitive.Root>
 ))
-ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
+ScrollArea.displayName = "ScrollArea"
 
 // CodeEditor Component – CodeMirror-based (no WASM)
 function CodeEditor({
@@ -864,7 +864,7 @@ function EnhancedFileExplorer({
         if (item.path === path) {
           return { ...item, isOpen: !item.isOpen }
         } else if (item.children) {
-          return { ...item, children: updateTree(item.children) }
+          return { ...item, children: updateTree(item.children, parentPath) }
         }
         return item
       })
@@ -2066,6 +2066,7 @@ export const VSCodeEditor = forwardRef<
     </div>
   )
 })
+VSCodeEditor.displayName = "VSCodeEditor"
 
 // Chat Panel Component
 function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: string) => void }) {
