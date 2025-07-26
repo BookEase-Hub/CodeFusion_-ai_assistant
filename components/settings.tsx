@@ -14,28 +14,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
 import { CodeAnalyzer } from "@/components/code-analyzer"
+import { useSession } from "next-auth/react"
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("account")
   const { theme, setTheme } = useTheme()
   const [fontScale, setFontScale] = useState(100)
   const [editorFontSize, setEditorFontSize] = useState(14)
-  const { user, updateProfile } = useAuth()
+  const { data: session, update } = useSession()
   const { toast } = useToast()
 
   const [profileData, setProfileData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    bio: user?.bio || "",
+    name: session?.user?.name || "",
+    email: session?.user?.email || "",
+    bio: "",
   })
 
   const handleSaveProfile = async () => {
     try {
-      await updateProfile(profileData)
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          name: profileData.name,
+          email: profileData.email,
+        },
+      })
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
@@ -129,8 +136,8 @@ export function Settings() {
                 <CardContent className="space-y-6">
                   <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={user?.avatar || "/placeholder.svg?height=64&width=64"} alt="User" />
-                      <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                      <AvatarImage src={session?.user?.image || "/placeholder.svg?height=64&width=64"} alt="User" />
+                      <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Button variant="outline">Change Avatar</Button>

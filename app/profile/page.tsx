@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState, useRef } from "react"
-import { useAuth } from "@/contexts/auth-context"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,14 +22,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import Image from "next/image"
+import { useSession } from "next-auth/react"
 
 export default function ProfilePage() {
-  const { user, updateProfile, updateAvatar } = useAuth()
+  const { data: session, update } = useSession()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    bio: user?.bio || "",
+    name: session?.user?.name || "",
+    email: session?.user?.email || "",
+    bio: "",
   })
   const [activeTab, setActiveTab] = useState("profile")
   const { toast } = useToast()
@@ -88,10 +88,13 @@ export default function ProfilePage() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      await updateProfile({
-        name: formData.name,
-        email: formData.email,
-        bio: formData.bio,
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          name: formData.name,
+          email: formData.email,
+        },
       })
       toast({
         title: "Profile updated",
@@ -137,7 +140,13 @@ export default function ProfilePage() {
 
     setIsSubmitting(true)
     try {
-      await updateAvatar(croppedImageUrl)
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          image: croppedImageUrl,
+        },
+      })
       toast({
         title: "Avatar updated",
         description: "Your avatar has been updated successfully.",
@@ -155,7 +164,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!user) return null
+  if (!session) return null
 
   return (
     <AppLayout>
@@ -181,10 +190,10 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={user.avatar || "/placeholder.svg?height=96&width=96"} alt={user.name} />
-                  <AvatarFallback className="text-2xl">{user.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={session.user?.image || "/placeholder.svg?height=96&width=96"} alt={session.user?.name || ""} />
+                  <AvatarFallback className="text-2xl">{session.user?.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className=".flex .flex-col .sm:flex-row .gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button variant="outline" asChild>
                     <label htmlFor="avatar-upload" className="cursor-pointer">
                       <Camera className="mr-2 h-4 w-4" />
@@ -198,14 +207,20 @@ export default function ProfilePage() {
                       />
                     </label>
                   </Button>
-                  {user.avatar && (
+                  {session.user?.image && (
                     <Button
                       variant="outline"
                       className="text-destructive hover:text-destructive bg-transparent"
                       onClick={async () => {
                         setIsSubmitting(true)
                         try {
-                          await updateAvatar("")
+                          await update({
+                            ...session,
+                            user: {
+                              ...session?.user,
+                              image: "",
+                            },
+                          })
                           toast({
                             title: "Avatar removed",
                             description: "Your avatar has been removed successfully.",
@@ -284,9 +299,9 @@ export default function ProfilePage() {
                     variant="ghost"
                     onClick={() => {
                       setFormData({
-                        name: user.name,
-                        email: user.email,
-                        bio: user.bio || "",
+                        name: session.user?.name || "",
+                        email: session.user?.email || "",
+                        bio: "",
                       })
                     }}
                     disabled={isSubmitting}
@@ -321,14 +336,14 @@ export default function ProfilePage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={user.name.toLowerCase().replace(/\s+/g, ".")} disabled />
+                  <Input id="username" value={session.user?.name?.toLowerCase().replace(/\s+/g, ".") || ""} disabled />
                   <p className="text-sm text-muted-foreground">
                     Your username is automatically generated from your name.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="account-type">Account Type</Label>
-                  <Input id="account-type" value={user.role.charAt(0).toUpperCase() + user.role.slice(1)} disabled />
+                  <Input id="account-type" value={"Developer"} disabled />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="account-created">Account Created</Label>

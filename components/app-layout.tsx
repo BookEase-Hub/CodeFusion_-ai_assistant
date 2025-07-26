@@ -32,7 +32,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
-import { useRequireAuth } from "@/hooks/use-require-auth"
 import { useToast } from "@/components/ui/use-toast"
 import {
   AlertDialog,
@@ -61,7 +60,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const { data: session } = useSession()
-  const { requireAuth } = useRequireAuth()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -72,13 +70,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     setIsMobileMenuOpen(!isMobileMenuOpen)
   }
 
-  const handleNavigation = (path: string, requiresAuth: boolean, feature?: string) => {
-    // Only check auth for protected routes
-    if (requiresAuth) {
-      if (!requireAuth(feature)) {
-        return // Don't navigate if not authenticated
-      }
-    }
+  const handleNavigation = (path: string) => {
     router.push(path)
     setIsMobileMenuOpen(false)
   }
@@ -113,7 +105,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               return (
                 <button
                   key={item.path}
-                  onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
+                  onClick={() => handleNavigation(item.path)}
                   className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary relative px-3 py-2 rounded-md ${
                     isActive ? "bg-muted text-primary" : "text-muted-foreground"
                   }`}
@@ -216,7 +208,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 return (
                   <li key={item.path}>
                     <button
-                      onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
+                      onClick={() => handleNavigation(item.path)}
                       className={`flex w-full items-center gap-2 p-2 rounded-md transition-colors ${
                         isActive
                           ? "bg-primary/10 text-primary"
@@ -233,7 +225,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <>
                   <li>
                     <button
-                      onClick={() => handleNavigation("/profile", true, "Profile")}
+                      onClick={() => handleNavigation("/profile")}
                       className="flex w-full items-center gap-2 p-2 rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <User className="h-5 w-5" />
@@ -242,7 +234,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   </li>
                   <li>
                     <button
-                      onClick={() => handleNavigation("/billing", true, "Billing")}
+                      onClick={() => handleNavigation("/billing")}
                       className="flex w-full items-center gap-2 p-2 rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <CreditCard className="h-5 w-5" />

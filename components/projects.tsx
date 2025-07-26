@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useRequireAuth } from "@/hooks/use-require-auth"
 import { useToast } from "@/components/ui/use-toast"
 
 const projects = [
@@ -92,7 +91,6 @@ export function Projects() {
     language: "",
     template: "",
   })
-  const { requireAuth } = useRequireAuth()
   const { toast } = useToast()
 
   const filteredProjects = projects.filter(
@@ -102,31 +100,23 @@ export function Projects() {
   )
 
   const handleNewProject = () => {
-    if (requireAuth("project creation")) {
-      setShowNewProjectDialog(true)
-    }
+    setShowNewProjectDialog(true)
   }
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (requireAuth("project search")) {
-      setSearchQuery(e.target.value)
-    }
+    setSearchQuery(e.target.value)
   }
 
   const handleTabChange = (value: string) => {
-    if (requireAuth(`the ${value} projects tab`)) {
-      setActiveTab(value)
-    }
+    setActiveTab(value)
   }
 
   const handleProjectAction = (action: string, projectName?: string) => {
-    if (requireAuth(`project ${action}`)) {
-      toast({
-        title: "Action Completed",
-        description: projectName ? `Successfully ${action} ${projectName}.` : `Project ${action} completed.`,
-        duration: 3000,
-      })
-    }
+    toast({
+      title: "Action Completed",
+      description: projectName ? `Successfully ${action} ${projectName}.` : `Project ${action} completed.`,
+      duration: 3000,
+    })
   }
 
   const handleCreateProject = () => {

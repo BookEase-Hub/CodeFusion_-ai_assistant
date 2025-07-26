@@ -2,21 +2,21 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
+import { useSession } from "next-auth/react"
 import { AppLayout } from "@/components/app-layout"
 import { Dashboard } from "@/components/dashboard"
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { data: session, status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (status === "unauthenticated") {
       router.push("/login")
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [status, router])
 
-  if (isLoading || !isAuthenticated) {
+  if (status === "loading" || status === "unauthenticated") {
     return null // Will redirect to login
   }
 
