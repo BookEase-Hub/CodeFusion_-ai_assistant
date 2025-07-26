@@ -43,7 +43,7 @@
     "codemirror": "latest",
     "framer-motion": "latest",
     "lucide-react": "^0.454.0",
-    "mermaid": "^11.9.0",
+    "mermaid": "latest",
     "next": "14.2.16",
     "next-themes": "latest",
     "postcss": "^8.4.0",
