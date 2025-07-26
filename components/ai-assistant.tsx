@@ -78,7 +78,7 @@ import { html } from "@codemirror/lang-html"
 import { python } from "@codemirror/lang-python"
 import { css } from "@codemirror/lang-css"
 import { useToast } from "@/components/ui/use-toast"
-import VSCodeArchitecture from "@/components/ui/vscode-architecture"
+import { VSCodeArchitecture } from "@/components/ui/vscode-architecture"
 import { useAppState } from "@/contexts/app-state-context"
 import type { EditorTab, ChatMessage } from "@/contexts/app-state-context"
 
