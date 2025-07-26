@@ -108,26 +108,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-4">
             {navItems.map((item) => {
               const isActive = pathname === item.path
               return (
                 <button
                   key={item.path}
                   onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
-                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary relative ${
-                    isActive ? "text-primary" : "text-muted-foreground"
+                  className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary relative px-3 py-2 rounded-md ${
+                    isActive ? "bg-muted text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                  {isActive && (
-                    <motion.div
-                      className="absolute bottom-0 left-0 h-0.5 w-full bg-primary"
-                      layoutId="navbar-indicator"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
-                  )}
+                  <item.icon className="h-5 w-5" />
+                  <span className="hidden lg:inline-block">{item.name}</span>
                 </button>
               )
             })}
