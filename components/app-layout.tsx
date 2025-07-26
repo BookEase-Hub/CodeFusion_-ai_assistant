@@ -51,7 +51,6 @@ const navItems = [
   { name: "Projects", path: "/projects", icon: FolderGit2, requiresAuth: true, feature: "Projects" },
   { name: "API Hub", path: "/api-hub", icon: Plug, requiresAuth: true, feature: "API Hub" },
   { name: "Settings", path: "/settings", icon: SettingsIcon, requiresAuth: true, feature: "Settings" },
-  { name: "Code Analyzer", path: "/code-analyzer", icon: Code, requiresAuth: true, feature: "Code Analyzer" },
 ]
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {

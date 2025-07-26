@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
 import Image from "next/image"
+import { CodeAnalyzer } from "@/components/code-analyzer"
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("account")
@@ -107,6 +108,13 @@ export function Settings() {
               >
                 <Shield className="mr-2 h-4 w-4" />
                 Security
+              </TabsTrigger>
+              <TabsTrigger
+                value="code-analyzer"
+                className="justify-start px-3 py-2 h-9 font-normal data-[state=active]:bg-muted"
+              >
+                <Code className="mr-2 h-4 w-4" />
+                Code Analyzer
               </TabsTrigger>
             </TabsList>
           </div>
@@ -455,6 +463,9 @@ export function Settings() {
                   </Button>
                 </CardFooter>
               </Card>
+            </TabsContent>
+            <TabsContent value="code-analyzer">
+              <CodeAnalyzer />
             </TabsContent>
 
             <TabsContent value="ai" className="space-y-6">
