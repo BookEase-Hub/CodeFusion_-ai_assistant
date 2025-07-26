@@ -16,6 +16,7 @@ import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
+import Image from "next/image"
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("account")
@@ -191,10 +192,12 @@ export function Settings() {
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-                          <img
+                          <Image
                             src={account.icon || "/placeholder.svg"}
                             alt={account.name}
                             className="h-6 w-6 object-contain"
+                            width={24}
+                            height={24}
                           />
                         </div>
                         <div>
