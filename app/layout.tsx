@@ -6,7 +6,6 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/auth-context"
 import { AppStateProvider } from "@/contexts/app-state-context"
 import { Toaster } from "@/components/ui/toaster"
-import AppLayout from "@/components/app-layout"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,7 +26,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <AppStateProvider>
-              <AppLayout>{children}</AppLayout>
+              {children}
               <Toaster />
             </AppStateProvider>
           </AuthProvider>
