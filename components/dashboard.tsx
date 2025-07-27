@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowRight,
@@ -14,145 +14,81 @@ import {
   Sparkles,
   Zap,
   CreditCard,
-  Check,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { useSession } from "next-auth/react"
-import { CodeEditor } from "./code-editor"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+import { CodeEditor } from "@/components/code-editor"
+import { useAuth } from "@/contexts/auth-context"
+import { useRequireAuth } from "@/hooks/use-require-auth"
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview")
-  const { data: session } = useSession()
+  const { user } = useAuth()
+  const { requireAuth } = useRequireAuth()
   const router = useRouter()
-  const [isPremium, setIsPremium] = useState(false)
 
   // Calculate days left in trial if applicable
-  const daysLeftInTrial = session?.user?.trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(session.user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+  const daysLeftInTrial = user?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0
 
   const handleTabChange = (value: string) => {
+    if (value !== "overview") {
+      if (!requireAuth(`the ${value} tab`)) {
+        return
+      }
+    }
     setActiveTab(value)
   }
 
   const handleRecentProjectsClick = () => {
-    router.push("/projects")
+    if (requireAuth("Recent Projects")) {
+      router.push("/projects")
+    }
   }
 
   const handleOpenAIAssistant = () => {
-    router.push("/ai-assist")
-  }
-
-  useEffect(() => {
-    const checkPremium = async () => {
-      // In a real app, you would check the user's subscription status from your backend
-      const premiumStatus = localStorage.getItem("isPremium")
-      if (premiumStatus === "true") {
-        setIsPremium(true)
-      }
+    if (requireAuth("the AI Assistant")) {
+      router.push("/ai-assist")
     }
-    checkPremium()
-  }, [])
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome to CodeFusion, {session?.user?.name}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Welcome to CodeFusion</h1>
         <p className="text-muted-foreground">Your AI-powered coding assistant for seamless development</p>
       </div>
 
-      {session?.user && (
+      {user && user.subscriptionPlan === "free" && user.subscriptionStatus === "trial" && (
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Free Trial</CardTitle>
-            <CardDescription>
-              Unlimited access to all Premium features. {daysLeftInTrial} days left in your 14-day trial.
-            </CardDescription>
+            <CardDescription>You have {daysLeftInTrial} days left in your trial period.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-2 flex-1 w-full">
                 <div className="flex justify-between text-sm">
-                  <span>Trial Progress</span>
-                  <span>{daysLeftInTrial} / 14 days</span>
+                  <span>5 free generations</span>
+                  <span>3 used</span>
                 </div>
-                <Progress
-                  value={((14 - daysLeftInTrial) / 14) * 100}
-                  className="h-2"
-                  aria-label={`Trial progress: ${daysLeftInTrial} days remaining out of 14`}
-                />
+                <Progress value={60} className="h-2" />
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      className="bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={() => {
-                        router.push("/billing")
-                      }}
-                      disabled={isPremium}
-                    >
-                      {isPremium ? (
-                        <>
-                          <Check className="mr-2 h-4 w-4" />
-                          Premium Active
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Upgrade to Premium
-                        </>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs p-4">
-                    <p className="font-semibold">Premium Plan ($15/month)</p>
-                    <ul className="mt-2 space-y-1 text-sm">
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Unlimited code generations
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Unlimited chat interactions
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Mermaid architecture diagrams
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Code debugging and optimization explanations
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Automated unit testing
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Full API integrations (GitHub, Swagger, Firebase)
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Priority support
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Early access to new features
-                      </li>
-                      <li className="flex items-center gap-1">
-                        <Check className="h-4 w-4 text-primary" />
-                        Advanced analytics and insights
-                      </li>
-                    </ul>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Button
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => {
+                  if (requireAuth("Billing")) {
+                    router.push("/billing")
+                  }
+                }}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Upgrade to Premium
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -279,7 +215,11 @@ export function Dashboard() {
                       variant="outline"
                       size="sm"
                       className="justify-start bg-transparent"
-                      onClick={handleOpenAIAssistant}
+                      onClick={() => {
+                        if (requireAuth("AI Assistant suggestions")) {
+                          router.push("/ai-assist")
+                        }
+                      }}
                     >
                       <MessageSquareCode className="mr-2 h-4 w-4" />
                       {suggestion}
@@ -340,7 +280,7 @@ export function Dashboard() {
                   Performance
                 </Badge>
               </div>
-              <Button variant="outline" size="sm" onClick={() => {}}>
+              <Button variant="outline" size="sm" onClick={() => requireAuth("Code Snippet editing")}>
                 <Code className="mr-2 h-4 w-4" />
                 Edit Snippet
               </Button>
@@ -397,7 +337,7 @@ export function Dashboard() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" size="sm" onClick={() => {}}>
+              <Button variant="outline" size="sm" onClick={() => requireAuth("Detailed AI Reports")}>
                 View Detailed Report
               </Button>
             </CardFooter>
@@ -517,3 +457,5 @@ export function Dashboard() {
     </div>
   )
 }
+
+export default Dashboard

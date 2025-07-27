@@ -2,7 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Providers } from "@/components/providers"
+import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/contexts/auth-context"
+import { AppStateProvider } from "@/contexts/app-state-context"
+import { Toaster } from "@/components/ui/toaster"
 import AppLayout from "@/components/app-layout"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -21,9 +24,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Providers>
-          <AppLayout>{children}</AppLayout>
-        </Providers>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider>
+            <AppStateProvider>
+              <AppLayout>{children}</AppLayout>
+              <Toaster />
+            </AppStateProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

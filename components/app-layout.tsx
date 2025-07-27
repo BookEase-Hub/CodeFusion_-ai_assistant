@@ -15,7 +15,6 @@ import {
   X,
   Moon,
   Sun,
-  Code,
   Code2,
   LogOut,
   User,
@@ -31,7 +30,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/contexts/auth-context"
+import { useRequireAuth } from "@/hooks/use-require-auth"
 import { useToast } from "@/components/ui/use-toast"
 import {
   AlertDialog,
@@ -59,7 +59,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
-  const { data: session } = useSession()
+  const { user, isAuthenticated, logout } = useAuth()
+  const { requireAuth } = useRequireAuth()
   const { toast } = useToast()
 
   useEffect(() => {
@@ -70,14 +71,21 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     setIsMobileMenuOpen(!isMobileMenuOpen)
   }
 
-  const handleNavigation = (path: string) => {
+  const handleNavigation = (path: string, requiresAuth: boolean, feature?: string) => {
+    // Only check auth for protected routes
+    if (requiresAuth) {
+      if (!requireAuth(feature)) {
+        return // Don't navigate if not authenticated
+      }
+    }
     router.push(path)
     setIsMobileMenuOpen(false)
   }
 
   const handleLogout = () => {
     setShowLogoutConfirm(false)
-    signOut({ callbackUrl: "/login" })
+    logout()
+    router.push("/login")
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",
@@ -99,19 +107,26 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center gap-4">
+          <nav className="hidden md:flex items-center gap-6">
             {navItems.map((item) => {
               const isActive = pathname === item.path
               return (
                 <button
                   key={item.path}
-                  onClick={() => handleNavigation(item.path)}
-                  className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary relative px-3 py-2 rounded-md ${
-                    isActive ? "bg-muted text-primary" : "text-muted-foreground"
+                  onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary relative ${
+                    isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span className="hidden lg:inline-block">{item.name}</span>
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                  {isActive && (
+                    <motion.div
+                      className="absolute bottom-0 left-0 h-0.5 w-full bg-primary"
+                      layoutId="navbar-indicator"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
                 </button>
               )
             })}
@@ -146,20 +161,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={session?.user?.image || "/placeholder.svg?height=32&width=32"}
-                      alt={session?.user?.name || "User"}
+                      src={user?.avatar || "/placeholder.svg?height=32&width=32"}
+                      alt={user?.name || "User"}
                     />
-                    <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
+                    <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {session ? (
+                {isAuthenticated ? (
                   <>
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{session?.user?.name}</p>
-                        <p className="text-sm text-muted-foreground">{session?.user?.email}</p>
+                        <p className="font-medium">{user?.name}</p>
+                        <p className="text-sm text-muted-foreground">{user?.email}</p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
@@ -182,7 +197,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                     </DropdownMenuItem>
                   </>
                 ) : (
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/login")}>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => requireAuth()}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Sign In</span>
                   </DropdownMenuItem>
@@ -208,7 +223,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 return (
                   <li key={item.path}>
                     <button
-                      onClick={() => handleNavigation(item.path)}
+                      onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
                       className={`flex w-full items-center gap-2 p-2 rounded-md transition-colors ${
                         isActive
                           ? "bg-primary/10 text-primary"
@@ -221,11 +236,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   </li>
                 )
               })}
-              {session ? (
+              {isAuthenticated ? (
                 <>
                   <li>
                     <button
-                      onClick={() => handleNavigation("/profile")}
+                      onClick={() => handleNavigation("/profile", true, "Profile")}
                       className="flex w-full items-center gap-2 p-2 rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <User className="h-5 w-5" />
@@ -234,7 +249,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   </li>
                   <li>
                     <button
-                      onClick={() => handleNavigation("/billing")}
+                      onClick={() => handleNavigation("/billing", true, "Billing")}
                       className="flex w-full items-center gap-2 p-2 rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <CreditCard className="h-5 w-5" />
@@ -255,7 +270,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <li>
                   <button
                     className="flex w-full items-center gap-2 p-2 rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={() => router.push("/login")}
+                    onClick={() => requireAuth()}
                   >
                     <User className="h-5 w-5" />
                     Sign In

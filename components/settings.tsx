@@ -14,35 +14,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import Image from "next/image"
-import { CodeAnalyzer } from "@/components/code-analyzer"
-import { useSession } from "next-auth/react"
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("account")
   const { theme, setTheme } = useTheme()
   const [fontScale, setFontScale] = useState(100)
   const [editorFontSize, setEditorFontSize] = useState(14)
-  const { data: session, update } = useSession()
+  const { user, updateProfile } = useAuth()
   const { toast } = useToast()
 
   const [profileData, setProfileData] = useState({
-    name: session?.user?.name || "",
-    email: session?.user?.email || "",
-    bio: "",
+    name: user?.name || "",
+    email: user?.email || "",
+    bio: user?.bio || "",
   })
 
   const handleSaveProfile = async () => {
     try {
-      await update({
-        ...session,
-        user: {
-          ...session?.user,
-          name: profileData.name,
-          email: profileData.email,
-        },
-      })
+      await updateProfile(profileData)
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
@@ -116,13 +107,6 @@ export function Settings() {
                 <Shield className="mr-2 h-4 w-4" />
                 Security
               </TabsTrigger>
-              <TabsTrigger
-                value="code-analyzer"
-                className="justify-start px-3 py-2 h-9 font-normal data-[state=active]:bg-muted"
-              >
-                <Code className="mr-2 h-4 w-4" />
-                Code Analyzer
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -136,8 +120,8 @@ export function Settings() {
                 <CardContent className="space-y-6">
                   <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={session?.user?.image || "/placeholder.svg?height=64&width=64"} alt="User" />
-                      <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
+                      <AvatarImage src={user?.avatar || "/placeholder.svg?height=64&width=64"} alt="User" />
+                      <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Button variant="outline">Change Avatar</Button>
@@ -207,12 +191,10 @@ export function Settings() {
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-                          <Image
+                          <img
                             src={account.icon || "/placeholder.svg"}
                             alt={account.name}
                             className="h-6 w-6 object-contain"
-                            width={24}
-                            height={24}
                           />
                         </div>
                         <div>
@@ -470,9 +452,6 @@ export function Settings() {
                   </Button>
                 </CardFooter>
               </Card>
-            </TabsContent>
-            <TabsContent value="code-analyzer">
-              <CodeAnalyzer />
             </TabsContent>
 
             <TabsContent value="ai" className="space-y-6">
