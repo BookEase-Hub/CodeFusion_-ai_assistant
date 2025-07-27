@@ -14,6 +14,7 @@ import {
   Sparkles,
   Zap,
   CreditCard,
+  Check,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { CodeEditor } from "@/components/code-editor"
 import { useAuth } from "@/contexts/auth-context"
 import { useRequireAuth } from "@/hooks/use-require-auth"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -30,10 +32,10 @@ export function Dashboard() {
   const { requireAuth } = useRequireAuth()
   const router = useRouter()
 
-  // Calculate days left in trial if applicable
   const daysLeftInTrial = user?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0
+  const trialProgress = user?.subscriptionPlan === 'premium' ? 100 : ((14 - daysLeftInTrial) / 14) * 100
 
   const handleTabChange = (value: string) => {
     if (value !== "overview") {
@@ -63,32 +65,89 @@ export function Dashboard() {
         <p className="text-muted-foreground">Your AI-powered coding assistant for seamless development</p>
       </div>
 
-      {user && user.subscriptionPlan === "free" && user.subscriptionStatus === "trial" && (
+      {user && (
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Free Trial</CardTitle>
-            <CardDescription>You have {daysLeftInTrial} days left in your trial period.</CardDescription>
+            <CardTitle className="text-lg">
+              {user.subscriptionPlan === 'premium'
+                ? "Premium Plan"
+                : daysLeftInTrial > 0
+                  ? "Free Trial"
+                  : "End of Free Tier"}
+            </CardTitle>
+            <CardDescription>
+              {user.subscriptionPlan === 'premium'
+                ? "You have unlimited access to all features."
+                : daysLeftInTrial > 0
+                  ? `You have ${daysLeftInTrial} Free Trial Credits Remaining.`
+                  : "Upgrade to Access Premium Features"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-2 flex-1 w-full">
-                <div className="flex justify-between text-sm">
-                  <span>5 free generations</span>
-                  <span>3 used</span>
-                </div>
-                <Progress value={60} className="h-2" />
+                <Progress value={trialProgress} className="h-2" />
               </div>
-              <Button
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => {
-                  if (requireAuth("Billing")) {
-                    router.push("/billing")
-                  }
-                }}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                Upgrade to Premium
-              </Button>
+              {user.subscriptionPlan !== 'premium' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={() => {
+                          if (requireAuth("Billing")) {
+                            router.push("/billing")
+                          }
+                        }}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Upgrade to Premium
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs p-4">
+                      <p className="font-semibold">Premium Plan ($15/month)</p>
+                      <ul className="mt-2 space-y-1 text-sm">
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Unlimited code generations
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Unlimited chat interactions
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Mermaid architecture diagrams
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Code debugging and optimization explanations
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Automated unit testing
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Full API integrations (GitHub, Swagger, Firebase)
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Priority support
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Early access to new features
+                        </li>
+                        <li className="flex items-center gap-1">
+                          <Check className="h-4 w-4 text-primary" />
+                          Advanced analytics and insights
+                        </li>
+                      </ul>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </CardContent>
         </Card>

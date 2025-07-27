@@ -1460,6 +1460,17 @@ export const VSCodeEditor = forwardRef<
   const fileManager = useFileManager()
   const { toast } = useToast()
 
+  // Debounce function
+  const debounce = (func: (...args: any[]) => void, delay: number) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+  };
+
   // Auto-save functionality
   useEffect(() => {
     if (autoSave && activeEditorTab) {
@@ -1506,10 +1517,16 @@ export const VSCodeEditor = forwardRef<
     removeEditorTab(id)
   }
 
-  const handleContentChange = (value: string, tabId: string) => {
-    updateEditorTab(tabId, { content: value, isDirty: true })
-    onCodeChange?.(value)
-  }
+  const debouncedUpdate = debounce((tabId: string, value: string) => {
+    updateEditorTab(tabId, { content: value, isDirty: true });
+    onCodeChange?.(value);
+  }, 300);
+
+  const handleContentChange = (value: string | undefined, tabId: string) => {
+    if (value !== undefined) {
+      debouncedUpdate(tabId, value);
+    }
+  };
 
   const insertCodeIntoEditor = (code: string, language = "javascript") => {
     if (activeEditorTab) {
@@ -1903,8 +1920,12 @@ export const VSCodeEditor = forwardRef<
                       height="100%"
                       language={tab.language || "javascript"}
                       value={tab.content}
-                      onChange={(value) => handleContentChange(value || "", tab.id)}
+                      onChange={(value) => handleContentChange(value, tab.id)}
                       theme="vs-dark"
+                      options={{
+                        automaticLayout: true,
+                        minimap: { enabled: false },
+                      }}
                     />
                   </TabsContent>
                 ))}
@@ -2304,53 +2325,57 @@ function fastFunction(arr) {
  */
 export function AIAssistant() {
   const editorRef = React.useRef<{
-    insertCode: (code: string, language?: string) => void
-  } | null>(null)
-  const [showApiHubDialog, setShowApiHubDialog] = useState(false)
-  const router = useRouter()
+    insertCode: (code: string, language?: string) => void;
+  } | null>(null);
+  const [showApiHubDialog, setShowApiHubDialog] = useState(false);
+  const [diagramCode, setDiagramCode] = useState("");
+  const router = useRouter();
 
-  // helper passed to ChatPanel so the AI can drop code into editor
-  const handleInsertCode = React.useCallback((code: string, language = "javascript") => {
-    editorRef.current?.insertCode(code, language)
-  }, [])
+  const handleInsertCode = React.useCallback(
+    (code: string, language = "javascript") => {
+      editorRef.current?.insertCode(code, language);
+      setDiagramCode(code);
+    },
+    []
+  );
 
   const handleMarkProjectComplete = () => {
-    setShowApiHubDialog(true)
-  }
+    setShowApiHubDialog(true);
+  };
 
   const handleApiHubIntegration = () => {
-    setShowApiHubDialog(false)
-    router.push("/api-hub")
-  }
+    setShowApiHubDialog(false);
+    router.push("/api-hub");
+  };
 
   return (
-    <div className="grid lg:grid-cols-12 gap-4 h-[calc(100vh-8rem)]">
-      <div className="lg:col-span-8 h-full">
-        <VSCodeEditor
-          ref={editorRef as any} // satisfy TS
-        />
-      </div>
-
-      <div className="lg:col-span-4 flex flex-col h-full">
-        <div className="flex-1 overflow-hidden border rounded-md">
-          <ChatPanel onInsertCode={handleInsertCode} />
-        </div>
-        <div className="mt-4 h-[35%]">
-          <VSCodeArchitecture />
-        </div>
-        <div className="flex gap-2 mt-4">
-          <Button>Install Dependencies</Button>
-          <Button>Run Tests</Button>
-          <Button onClick={handleMarkProjectComplete}>Mark Project Complete</Button>
-        </div>
+    <Tabs defaultValue="editor" className="h-[calc(100vh-8rem)]">
+      <TabsList>
+        <TabsTrigger value="editor">VS Code Editor</TabsTrigger>
+        <TabsTrigger value="chat">AI Chat</TabsTrigger>
+        <TabsTrigger value="diagram">Architecture Diagram</TabsTrigger>
+      </TabsList>
+      <TabsContent value="editor" className="h-full">
+        <VSCodeEditor ref={editorRef as any} onCodeChange={setDiagramCode} />
+      </TabsContent>
+      <TabsContent value="chat" className="h-full">
+        <ChatPanel onInsertCode={handleInsertCode} />
+      </TabsContent>
+      <TabsContent value="diagram" className="h-full">
+        <VSCodeArchitecture code={diagramCode} />
+      </TabsContent>
+      <div className="flex gap-2 mt-4">
+        <Button onClick={handleMarkProjectComplete}>
+          Mark Project Complete
+        </Button>
       </div>
       <ApiHubIntegrationDialog
         open={showApiHubDialog}
         onOpenChange={setShowApiHubDialog}
         onConfirm={handleApiHubIntegration}
       />
-    </div>
-  )
+    </Tabs>
+  );
 }
 // default export for backwards compatibility
 export default AIAssistant
