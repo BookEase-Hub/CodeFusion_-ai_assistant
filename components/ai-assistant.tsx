@@ -2328,12 +2328,13 @@ export function AIAssistant() {
     insertCode: (code: string, language?: string) => void;
   } | null>(null);
   const [showApiHubDialog, setShowApiHubDialog] = useState(false);
+  const [diagramCode, setDiagramCode] = useState("");
   const router = useRouter();
 
-  // helper passed to ChatPanel so the AI can drop code into editor
   const handleInsertCode = React.useCallback(
     (code: string, language = "javascript") => {
       editorRef.current?.insertCode(code, language);
+      setDiagramCode(code);
     },
     []
   );
@@ -2355,13 +2356,13 @@ export function AIAssistant() {
         <TabsTrigger value="diagram">Architecture Diagram</TabsTrigger>
       </TabsList>
       <TabsContent value="editor" className="h-full">
-        <VSCodeEditor ref={editorRef as any} />
+        <VSCodeEditor ref={editorRef as any} onCodeChange={setDiagramCode} />
       </TabsContent>
       <TabsContent value="chat" className="h-full">
         <ChatPanel onInsertCode={handleInsertCode} />
       </TabsContent>
       <TabsContent value="diagram" className="h-full">
-        <VSCodeArchitecture />
+        <VSCodeArchitecture code={diagramCode} />
       </TabsContent>
       <div className="flex gap-2 mt-4">
         <Button onClick={handleMarkProjectComplete}>
