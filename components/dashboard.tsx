@@ -26,7 +26,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useRequireAuth } from "@/hooks/use-require-auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export function Dashboard() {
+export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const { user, subscription } = useAuth(); // Assuming subscription details are available here
   const { requireAuth } = useRequireAuth();
