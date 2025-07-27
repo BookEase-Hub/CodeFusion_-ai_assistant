@@ -426,7 +426,7 @@ return (
         </div>
 
         <div className="text-xs text-gray-500 text-center px-4">
-          By clicking "Pay $15/month", you'll start your Premium plan subscription of $15/month, with a renewal date
+          By clicking &quot;Pay $15/month&quot;, you&apos;ll start your Premium plan subscription of $15/month, with a renewal date
           of the same date each month.
         </div>
       </div>
