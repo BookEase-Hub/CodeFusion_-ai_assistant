@@ -16,8 +16,8 @@ import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import { CodeAnalyzer } from "./code-analyzer"
 import Image from "next/image"
+import { CodeAnalyzer } from "@/components/ui/code-analyzer"
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("account")
@@ -464,6 +464,9 @@ export function Settings() {
                 </CardFooter>
               </Card>
             </TabsContent>
+            <TabsContent value="code-analyzer">
+              <CodeAnalyzer />
+            </TabsContent>
 
             <TabsContent value="ai" className="space-y-6">
               <Card>
@@ -699,9 +702,6 @@ export function Settings() {
                   </Button>
                 </CardFooter>
               </Card>
-            </TabsContent>
-            <TabsContent value="code-analyzer">
-              <CodeAnalyzer />
             </TabsContent>
           </div>
         </div>

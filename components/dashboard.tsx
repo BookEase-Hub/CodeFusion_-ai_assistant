@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Code,
@@ -15,144 +15,177 @@ import {
   Zap,
   CreditCard,
   Check,
-} from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { CodeEditor } from "@/components/code-editor"
-import { useAuth } from "@/contexts/auth-context"
-import { useRequireAuth } from "@/hooks/use-require-auth"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+} from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { CodeEditor } from "@/components/code-editor";
+import { useAuth } from "@/contexts/auth-context";
+import { useRequireAuth } from "@/hooks/use-require-auth";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export function Dashboard() {
-  const [activeTab, setActiveTab] = useState("overview")
-  const { user } = useAuth()
-  const { requireAuth } = useRequireAuth()
-  const router = useRouter()
+export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState("overview");
+  const { user, subscription } = useAuth(); // Assuming subscription details are available here
+  const { requireAuth } = useRequireAuth();
+  const router = useRouter();
 
+  // Calculate days left in trial if applicable
   const daysLeftInTrial = user?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0
-  const trialProgress = user?.subscriptionPlan === 'premium' ? 100 : ((14 - daysLeftInTrial) / 14) * 100
+    : 0;
+
+  const isTrialActive = user?.subscriptionPlan === "free" && user.subscriptionStatus === "trial";
+  const isSubscribed = user?.subscriptionPlan === "premium"; // Assuming a 'premium' plan indicates active subscription
 
   const handleTabChange = (value: string) => {
     if (value !== "overview") {
       if (!requireAuth(`the ${value} tab`)) {
-        return
+        return;
       }
     }
-    setActiveTab(value)
-  }
+    setActiveTab(value);
+  };
 
   const handleRecentProjectsClick = () => {
     if (requireAuth("Recent Projects")) {
-      router.push("/projects")
+      router.push("/projects");
     }
-  }
+  };
 
   const handleOpenAIAssistant = () => {
     if (requireAuth("the AI Assistant")) {
-      router.push("/ai-assist")
+      router.push("/ai-assist");
     }
-  }
+  };
+
+  const handleUpgradeClick = () => {
+    if (requireAuth("Billing")) {
+      router.push("/billing");
+    }
+  };
+
+  const handleViewDetailedReport = () => {
+    if (requireAuth("Detailed AI Reports")) {
+      // Navigate or show detailed report
+    }
+  };
+
+  const handleEditSnippet = () => {
+    if (requireAuth("Code Snippet editing")) {
+      // Handle edit snippet logic
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome to CodeFusion</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Welcome to CodeFusion</h1>
         <p className="text-muted-foreground">Your AI-powered coding assistant for seamless development</p>
       </div>
 
-      {user && (
+      {/* Trial Information Card */}
+      {isTrialActive && (
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">
-              {user.subscriptionPlan === 'premium'
-                ? "Premium Plan"
-                : daysLeftInTrial > 0
-                  ? "Free Trial"
-                  : "End of Free Tier"}
-            </CardTitle>
+            <CardTitle className="text-lg">Free Trial</CardTitle>
             <CardDescription>
-              {user.subscriptionPlan === 'premium'
-                ? "You have unlimited access to all features."
-                : daysLeftInTrial > 0
-                  ? `You have ${daysLeftInTrial} Free Trial Credits Remaining.`
-                  : "Upgrade to Access Premium Features"}
+              Unlimited access to all Premium features. {daysLeftInTrial} days left in your 14-day trial.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-2 flex-1 w-full">
-                <Progress value={trialProgress} className="h-2" />
+                <div className="flex justify-between text-sm">
+                  <span>Trial Progress</span>
+                  <span>{daysLeftInTrial} / 14 days</span>
+                </div>
+                <Progress
+                  value={((14 - daysLeftInTrial) / 14) * 100}
+                  className="h-2"
+                  aria-label={`Trial progress: ${daysLeftInTrial} days remaining out of 14`}
+                />
               </div>
-              {user.subscriptionPlan !== 'premium' && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        className="bg-primary text-primary-foreground hover:bg-primary/90"
-                        onClick={() => {
-                          if (requireAuth("Billing")) {
-                            router.push("/billing")
-                          }
-                        }}
-                      >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Upgrade to Premium
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs p-4">
-                      <p className="font-semibold">Premium Plan ($15/month)</p>
-                      <ul className="mt-2 space-y-1 text-sm">
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Unlimited code generations
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Unlimited chat interactions
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Mermaid architecture diagrams
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Code debugging and optimization explanations
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Automated unit testing
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Full API integrations (GitHub, Swagger, Firebase)
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Priority support
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Early access to new features
-                        </li>
-                        <li className="flex items-center gap-1">
-                          <Check className="h-4 w-4 text-primary" />
-                          Advanced analytics and insights
-                        </li>
-                      </ul>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                      onClick={handleUpgradeClick}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Upgrade to Premium
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs p-4">
+                    <p className="font-semibold">Premium Plan ($15/month)</p>
+                    <ul className="mt-2 space-y-1 text-sm">
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Unlimited code generations
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Unlimited chat interactions
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Mermaid architecture diagrams
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Code debugging and optimization explanations
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Automated unit testing
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Full API integrations (GitHub, Swagger, Firebase)
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Priority support
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Early access to new features
+                      </li>
+                      <li className="flex items-center gap-1">
+                        <Check className="h-4 w-4 text-primary" />
+                        Advanced analytics and insights
+                      </li>
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Subscription Status for Premium Users */}
+      {isSubscribed && (
+        <Card className="bg-green-100 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-green-800 dark:text-green-200">Premium Active</CardTitle>
+            <CardDescription className="text-green-700 dark:text-green-300">
+              Enjoy all premium benefits with unlimited access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <span className="font-medium">Subscription confirmed</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Metrics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -196,6 +229,7 @@ export function Dashboard() {
         </Card>
       </div>
 
+      {/* Tabs */}
       <Tabs defaultValue="overview" value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -276,7 +310,7 @@ export function Dashboard() {
                       className="justify-start bg-transparent"
                       onClick={() => {
                         if (requireAuth("AI Assistant suggestions")) {
-                          router.push("/ai-assist")
+                          router.push("/ai-assist");
                         }
                       }}
                     >
@@ -314,7 +348,8 @@ export function Dashboard() {
       return cache.get(id);
     }
     
-    const result = data.filter(item => item.id === id)
+    const result = data
+      .filter(item => item.id === id)
       .map(item => processItem(item))
       .reduce((acc, val) => acc + val, 0);
       
@@ -327,20 +362,8 @@ export function Dashboard() {
                 readOnly
               />
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="flex gap-2">
-                <Badge
-                  variant="outline"
-                  className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                >
-                  JavaScript
-                </Badge>
-                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                  Performance
-                </Badge>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => requireAuth("Code Snippet editing")}>
-                <Code className="mr-2 h-4 w-4" />
+            <CardFooter>
+              <Button variant="outline" size="sm" onClick={handleEditSnippet}>
                 Edit Snippet
               </Button>
             </CardFooter>
@@ -396,7 +419,7 @@ export function Dashboard() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" size="sm" onClick={() => requireAuth("Detailed AI Reports")}>
+              <Button variant="outline" size="sm" onClick={handleViewDetailedReport}>
                 View Detailed Report
               </Button>
             </CardFooter>
@@ -514,7 +537,5 @@ export function Dashboard() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
-
-export default Dashboard
