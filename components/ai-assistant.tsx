@@ -69,18 +69,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import mermaid from "mermaid"
-
-import CodeMirror from "@uiw/react-codemirror"
-import { vscodeDark } from "@uiw/codemirror-theme-vscode"
-import { javascript } from "@codemirror/lang-javascript"
-import { json } from "@codemirror/lang-json"
-import { html } from "@codemirror/lang-html"
-import { python } from "@codemirror/lang-python"
-import { css } from "@codemirror/lang-css"
+import Editor from "@monaco-editor/react"
 import { useToast } from "@/components/ui/use-toast"
 import { VSCodeArchitecture } from "@/components/ui/vscode-architecture"
 import { useAppState } from "@/contexts/app-state-context"
 import type { EditorTab, ChatMessage } from "@/contexts/app-state-context"
+import { ApiHubIntegrationDialog } from "./ui/api-hub-integration-dialog"
+import { useRouter } from "next/navigation"
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -154,59 +149,7 @@ const ScrollArea = React.forwardRef<
     <ScrollAreaPrimitive.Corner />
   </ScrollAreaPrimitive.Root>
 ))
-ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
-
-// CodeEditor Component – CodeMirror-based (no WASM)
-function CodeEditor({
-  value,
-  language,
-  height,
-  onChange,
-  readOnly,
-}: {
-  value: string
-  language: string
-  height: string
-  onChange?: (value: string) => void
-  readOnly?: boolean
-}) {
-  /* Map language prop to CodeMirror extensions */
-  const extensions = React.useMemo(() => {
-    switch (language?.toLowerCase()) {
-      case "js":
-      case "javascript":
-      case "tsx":
-      case "typescript":
-        return [javascript({ jsx: true, typescript: true })]
-      case "json":
-        return [json()]
-      case "html":
-        return [html()]
-      case "python":
-        return [python()]
-      default:
-        return [] // fallback – plain‐text
-    }
-  }, [language])
-
-  return (
-    <CodeMirror
-      value={value}
-      height={height}
-      theme={vscodeDark}
-      extensions={extensions}
-      editable={!readOnly}
-      basicSetup={{
-        lineNumbers: true,
-        highlightActiveLine: true,
-        highlightActiveLineGutter: true,
-        foldGutter: true,
-      }}
-      onChange={(val) => onChange?.(val)}
-      style={{ fontSize: 14, fontFamily: `"Fira Code", "JetBrains Mono", monospace` }}
-    />
-  )
-}
+ScrollArea.displayName = "ScrollArea"
 
 // VS Code Menu Component
 function VSCodeMenu({
@@ -864,7 +807,7 @@ function EnhancedFileExplorer({
         if (item.path === path) {
           return { ...item, isOpen: !item.isOpen }
         } else if (item.children) {
-          return { ...item, children: updateTree(item.children) }
+          return { ...item, children: updateTree(item.children, parentPath) }
         }
         return item
       })
@@ -1511,9 +1454,22 @@ export const VSCodeEditor = forwardRef<
   const [startY, setStartY] = useState(0)
   const [autoSave, setAutoSave] = useState(true)
   const [recentFiles, setRecentFiles] = useState<string[]>([])
+  const [showApiHubDialog, setShowApiHubDialog] = useState(false)
+  const router = useRouter()
 
   const fileManager = useFileManager()
   const { toast } = useToast()
+
+  // Debounce function
+  const debounce = (func: (...args: any[]) => void, delay: number) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+  };
 
   // Auto-save functionality
   useEffect(() => {
@@ -1561,10 +1517,16 @@ export const VSCodeEditor = forwardRef<
     removeEditorTab(id)
   }
 
-  const handleContentChange = (value: string, tabId: string) => {
-    updateEditorTab(tabId, { content: value, isDirty: true })
-    onCodeChange?.(value)
-  }
+  const debouncedUpdate = debounce((tabId: string, value: string) => {
+    updateEditorTab(tabId, { content: value, isDirty: true });
+    onCodeChange?.(value);
+  }, 300);
+
+  const handleContentChange = (value: string | undefined, tabId: string) => {
+    if (value !== undefined) {
+      debouncedUpdate(tabId, value);
+    }
+  };
 
   const insertCodeIntoEditor = (code: string, language = "javascript") => {
     if (activeEditorTab) {
@@ -1954,11 +1916,16 @@ export const VSCodeEditor = forwardRef<
               <Tabs value={activeEditorTab} className="h-full">
                 {editorTabs.map((tab) => (
                   <TabsContent key={tab.id} value={tab.id} className="h-full">
-                    <CodeEditor
-                      value={tab.content}
-                      language={tab.language || "javascript"}
+                    <Editor
                       height="100%"
-                      onChange={(value) => handleContentChange(value || "", tab.id)}
+                      language={tab.language || "javascript"}
+                      value={tab.content}
+                      onChange={(value) => handleContentChange(value, tab.id)}
+                      theme="vs-dark"
+                      options={{
+                        automaticLayout: true,
+                        minimap: { enabled: false },
+                      }}
                     />
                   </TabsContent>
                 ))}
@@ -2063,9 +2030,18 @@ export const VSCodeEditor = forwardRef<
           </div>
         </div>
       </div>
+      <ApiHubIntegrationDialog
+        open={showApiHubDialog}
+        onOpenChange={setShowApiHubDialog}
+        onConfirm={() => {
+          setShowApiHubDialog(false)
+          router.push("/api-hub")
+        }}
+      />
     </div>
   )
 })
+VSCodeEditor.displayName = "VSCodeEditor"
 
 // Chat Panel Component
 function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language: string) => void }) {
@@ -2288,7 +2264,13 @@ function fastFunction(arr) {
             </div>
             {message.code && (
               <div className="relative mt-2 rounded-md overflow-hidden">
-                <CodeEditor value={message.code.value} language={message.code.language || "javascript"} height="200px" readOnly />
+                <Editor
+                  height="200px"
+                  language={message.code.language || "javascript"}
+                  value={message.code.value}
+                  theme="vs-dark"
+                  options={{ readOnly: true }}
+                />
                 <div className="absolute top-2 right-2 flex gap-2">
                   <Button
                     variant="outline"
@@ -2343,32 +2325,57 @@ function fastFunction(arr) {
  */
 export function AIAssistant() {
   const editorRef = React.useRef<{
-    insertCode: (code: string, language?: string) => void
-  } | null>(null)
+    insertCode: (code: string, language?: string) => void;
+  } | null>(null);
+  const [showApiHubDialog, setShowApiHubDialog] = useState(false);
+  const [diagramCode, setDiagramCode] = useState("");
+  const router = useRouter();
 
-  // helper passed to ChatPanel so the AI can drop code into editor
-  const handleInsertCode = React.useCallback((code: string, language = "javascript") => {
-    editorRef.current?.insertCode(code, language)
-  }, [])
+  const handleInsertCode = React.useCallback(
+    (code: string, language = "javascript") => {
+      editorRef.current?.insertCode(code, language);
+      setDiagramCode(code);
+    },
+    []
+  );
+
+  const handleMarkProjectComplete = () => {
+    setShowApiHubDialog(true);
+  };
+
+  const handleApiHubIntegration = () => {
+    setShowApiHubDialog(false);
+    router.push("/api-hub");
+  };
 
   return (
-    <div className="grid lg:grid-cols-12 gap-4 h-[calc(100vh-8rem)]">
-      <div className="lg:col-span-8 h-full">
-        <VSCodeEditor
-          ref={editorRef as any} // satisfy TS
-        />
+    <Tabs defaultValue="editor" className="h-[calc(100vh-8rem)]">
+      <TabsList>
+        <TabsTrigger value="editor">VS Code Editor</TabsTrigger>
+        <TabsTrigger value="chat">AI Chat</TabsTrigger>
+        <TabsTrigger value="diagram">Architecture Diagram</TabsTrigger>
+      </TabsList>
+      <TabsContent value="editor" className="h-full">
+        <VSCodeEditor ref={editorRef as any} onCodeChange={setDiagramCode} />
+      </TabsContent>
+      <TabsContent value="chat" className="h-full">
+        <ChatPanel onInsertCode={handleInsertCode} />
+      </TabsContent>
+      <TabsContent value="diagram" className="h-full">
+        <VSCodeArchitecture code={diagramCode} />
+      </TabsContent>
+      <div className="flex gap-2 mt-4">
+        <Button onClick={handleMarkProjectComplete}>
+          Mark Project Complete
+        </Button>
       </div>
-
-      <div className="lg:col-span-4 flex flex-col h-full">
-        <div className="flex-1 overflow-hidden border rounded-md">
-          <ChatPanel onInsertCode={handleInsertCode} />
-        </div>
-        <div className="mt-4 h-[35%]">
-          <VSCodeArchitecture />
-        </div>
-      </div>
-    </div>
-  )
+      <ApiHubIntegrationDialog
+        open={showApiHubDialog}
+        onOpenChange={setShowApiHubDialog}
+        onConfirm={handleApiHubIntegration}
+      />
+    </Tabs>
+  );
 }
 // default export for backwards compatibility
 export default AIAssistant

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRequireAuth } from "@/hooks/use-require-auth"
+import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
 
 const apiIntegrations = [
@@ -270,10 +271,12 @@ export function APIHub() {
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                        <img
+                        <Image
                           src={integration.icon || "/placeholder.svg"}
                           alt={integration.name}
                           className="h-8 w-8 object-contain"
+                          width={32}
+                          height={32}
                         />
                       </div>
                       <div className="flex-1">
@@ -410,7 +413,7 @@ export function APIHub() {
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                    <img src={api.icon || "/placeholder.svg"} alt={api.name} className="h-8 w-8 object-contain" />
+                    <Image src={api.icon || "/placeholder.svg"} alt={api.name} className="h-8 w-8 object-contain" width={32} height={32} />
                   </div>
                   <div>
                     <h3 className="font-medium">{api.name}</h3>

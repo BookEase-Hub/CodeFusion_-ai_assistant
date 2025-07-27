@@ -28,6 +28,7 @@ interface AuthContextProps {
   updateProfile: (data: { name: string; email: string; bio?: string }) => Promise<void>
   updateAvatar: (avatar: string) => Promise<void>
   updateSubscription: (plan: "free" | "premium") => Promise<void>
+  upgradeToPremium: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
 }
 
@@ -237,6 +238,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  const upgradeToPremium = async () => {
+    if (!user) return
+
+    try {
+      // Simulate API call to process payment and update subscription
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      const updatedUser = {
+        ...user,
+        subscriptionPlan: "premium" as const,
+        subscriptionStatus: "active" as const,
+      }
+      setUser(updatedUser)
+      localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
+    } catch (error) {
+      throw new Error("Failed to upgrade to premium")
+    }
+  }
+
   const resetPassword = async (email: string) => {
     try {
       // Simulate API call
@@ -263,6 +283,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateProfile,
     updateAvatar,
     updateSubscription,
+    upgradeToPremium,
     resetPassword,
   }
 
