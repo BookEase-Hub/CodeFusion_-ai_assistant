@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
@@ -43,31 +44,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter()
 
   useEffect(() => {
-    // Check for existing session on app load
     const checkAuth = async () => {
       try {
-        const savedUser = localStorage.getItem("codefusion_user")
         const sessionToken = localStorage.getItem("codefusion_token")
+        if (sessionToken) {
+          // Verify token with the backend
+          const res = await fetch(`${API_BASE}/api/auth/verify`, {
+            headers: { Authorization: `Bearer ${sessionToken}` },
+          })
 
-        if (savedUser && sessionToken) {
-          const userData = JSON.parse(savedUser)
-          // Verify token is still valid (simple check)
-          const tokenExpiry = localStorage.getItem("codefusion_token_expiry")
-          if (tokenExpiry && new Date().getTime() < Number.parseInt(tokenExpiry)) {
-            setUser(userData)
+          if (res.ok) {
+            const { user } = await res.json()
+            setUser(user)
           } else {
-            // Token expired, clear storage
-            localStorage.removeItem("codefusion_user")
-            localStorage.removeItem("codefusion_token")
-            localStorage.removeItem("codefusion_token_expiry")
+            // Token is invalid or expired
+            logout()
           }
         }
       } catch (error) {
         console.error("Auth check error:", error)
-        // Clear corrupted data
-        localStorage.removeItem("codefusion_user")
-        localStorage.removeItem("codefusion_token")
-        localStorage.removeItem("codefusion_token_expiry")
+        logout()
       } finally {
         setIsLoading(false)
       }
@@ -79,44 +75,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Simulate API call with realistic delay
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
 
-      // Simple validation for demo
-      if (!email || !password) {
-        throw new Error("Email and password are required")
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Login failed")
       }
 
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters")
-      }
+      const { user, token, expiresIn } = await res.json()
 
-      // Create mock user based on email
-      const mockUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: email.split("@")[0].charAt(0).toUpperCase() + email.split("@")[0].slice(1),
-        email: email,
-        avatar: "",
-        bio: "Welcome to CodeFusion!",
-        role: "developer",
-        subscriptionPlan: "free",
-        subscriptionStatus: "trial",
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString(),
-      }
+      const tokenExpiry = new Date().getTime() + expiresIn * 1000
 
-      // Generate session token
-      const sessionToken = Math.random().toString(36).substr(2, 15)
-      const tokenExpiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000 // 7 days
-
-      // Store user data and session
-      localStorage.setItem("codefusion_user", JSON.stringify(mockUser))
-      localStorage.setItem("codefusion_token", sessionToken)
+      localStorage.setItem("codefusion_user", JSON.stringify(user))
+      localStorage.setItem("codefusion_token", token)
       localStorage.setItem("codefusion_token_expiry", tokenExpiry.toString())
 
-      setUser(mockUser)
-
-      // Redirect to dashboard
+      setUser(user)
       router.push("/")
     } catch (error) {
       throw error
@@ -128,48 +106,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Simulate API call with realistic delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const res = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      })
 
-      // Validation
-      if (!name || !email || !password) {
-        throw new Error("All fields are required")
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Signup failed")
       }
 
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters")
-      }
+      const { user, token, expiresIn } = await res.json()
+      const tokenExpiry = new Date().getTime() + expiresIn * 1000
 
-      if (!/\S+@\S+\.\S+/.test(email)) {
-        throw new Error("Please enter a valid email address")
-      }
-
-      // Create new user
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        avatar: "",
-        bio: "",
-        role: "developer",
-        subscriptionPlan: "free",
-        subscriptionStatus: "trial",
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString(),
-      }
-
-      // Generate session token
-      const sessionToken = Math.random().toString(36).substr(2, 15)
-      const tokenExpiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000 // 7 days
-
-      // Store user data and session
-      localStorage.setItem("codefusion_user", JSON.stringify(newUser))
-      localStorage.setItem("codefusion_token", sessionToken)
+      localStorage.setItem("codefusion_user", JSON.stringify(user))
+      localStorage.setItem("codefusion_token", token)
       localStorage.setItem("codefusion_token_expiry", tokenExpiry.toString())
 
-      setUser(newUser)
-
-      // Redirect to dashboard
+      setUser(user)
       router.push("/")
     } catch (error) {
       throw error
@@ -192,14 +147,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const token = localStorage.getItem("codefusion_token")
+      const res = await fetch(`${API_BASE}/api/user/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      })
 
-      const updatedUser = { ...user, ...data }
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Failed to update profile")
+      }
+
+      const updatedUser = await res.json()
       setUser(updatedUser)
       localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
     } catch (error) {
-      throw new Error("Failed to update profile")
+      throw error
     }
   }
 
@@ -207,14 +174,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const token = localStorage.getItem("codefusion_token")
+      // This would typically be a file upload, but for simplicity, we send the new URL
+      const res = await fetch(`${API_BASE}/api/user/avatar`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ avatar }),
+      })
 
-      const updatedUser = { ...user, avatar }
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Failed to update avatar")
+      }
+
+      const updatedUser = await res.json()
       setUser(updatedUser)
       localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
     } catch (error) {
-      throw new Error("Failed to update avatar")
+      throw error
     }
   }
 
@@ -222,32 +202,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const token = localStorage.getItem("codefusion_token")
+      const res = await fetch(`${API_BASE}/api/user/subscription`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan }),
+      })
 
-      const updatedUser = {
-        ...user,
-        subscriptionPlan: plan,
-        subscriptionStatus: plan === "premium" ? "active" : "trial",
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Failed to update subscription")
       }
+
+      const updatedUser = await res.json()
       setUser(updatedUser)
       localStorage.setItem("codefusion_user", JSON.stringify(updatedUser))
     } catch (error) {
-      throw new Error("Failed to update subscription")
+      throw error
     }
   }
 
   const resetPassword = async (email: string) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
 
-      if (!/\S+@\S+\.\S+/.test(email)) {
-        throw new Error("Please enter a valid email address")
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Failed to send reset email")
       }
-
-      // In a real app, this would send a reset email
-      console.log("Password reset email sent to:", email)
     } catch (error) {
       throw error
     }
