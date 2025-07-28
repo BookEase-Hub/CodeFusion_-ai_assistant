@@ -1,9 +1,9 @@
 "use client"
 
-import type React from "react"
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL
 
 // User interface for the application
 interface User {
