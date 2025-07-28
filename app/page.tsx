@@ -3,7 +3,6 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { AppLayout } from "@/components/app-layout"
 import { Dashboard } from "@/components/dashboard"
 
 export default function HomePage() {
@@ -16,13 +15,17 @@ export default function HomePage() {
     }
   }, [isLoading, isAuthenticated, router])
 
+  // Simulate project creation and redirect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // router.push('/ai-assist');
+    }, 2000); // Redirect after 2 seconds
+    return () => clearTimeout(timer);
+  }, [router]);
+
   if (isLoading || !isAuthenticated) {
     return null // Will redirect to login
   }
 
-  return (
-    <AppLayout>
-      <Dashboard />
-    </AppLayout>
-  )
+  return <Dashboard />
 }

@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const navItems = [
   { name: "Dashboard", path: "/", icon: Home, requiresAuth: false },
@@ -72,10 +73,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   }
 
   const handleNavigation = (path: string, requiresAuth: boolean, feature?: string) => {
-    // Only check auth for protected routes
     if (requiresAuth) {
       if (!requireAuth(feature)) {
-        return // Don't navigate if not authenticated
+        return
       }
     }
     router.push(path)
@@ -94,7 +94,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
@@ -106,31 +105,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <span className="font-montserrat font-bold text-xl hidden sm:inline-block">CodeFusion</span>
             </Link>
           </div>
-
-          <nav className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => {
-              const isActive = pathname === item.path
-              return (
-                <button
-                  key={item.path}
-                  onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
-                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary relative ${
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                  {isActive && (
-                    <motion.div
-                      className="absolute bottom-0 left-0 h-0.5 w-full bg-primary"
-                      layoutId="navbar-indicator"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
-                  )}
-                </button>
-              )
-            })}
-          </nav>
 
           <div className="flex items-center gap-4">
             {mounted && (
@@ -208,7 +182,20 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      <div className="container py-6">
+        <Tabs value={pathname} onValueChange={(value) => router.push(value)} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            {navItems.map((item) => (
+              <TabsTrigger key={item.path} value={item.path} onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}>
+                <item.icon className="h-4 w-4 mr-2" />
+                {item.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
+
       {isMobileMenuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -282,10 +269,8 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </motion.div>
       )}
 
-      {/* Main Content */}
       <main className="flex-1 container py-6">{children}</main>
 
-      {/* Footer */}
       <footer className="border-t py-6 md:py-0">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4 md:h-16">
           <p className="text-sm text-muted-foreground">
@@ -302,7 +287,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         </div>
       </footer>
 
-      {/* Logout Confirmation Dialog */}
       <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
