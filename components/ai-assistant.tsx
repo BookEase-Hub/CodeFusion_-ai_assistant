@@ -141,13 +141,13 @@ const ScrollArea = React.forwardRef<
     <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">{children}</ScrollAreaPrimitive.Viewport>
     <ScrollAreaPrimitive.Scrollbar
       orientation="vertical"
-      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-[160ms] ease-out hover:bg-[#2a2d2e] data-[orientation=vertical]:w-2.5"
+      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-150 ease-out hover:bg-[#2a2d2e] data-[orientation=vertical]:w-2.5"
     >
       <ScrollAreaPrimitive.Thumb className="flex-1 bg-[#3c3c3c] rounded-[10px] relative" />
     </ScrollAreaPrimitive.Scrollbar>
     <ScrollAreaPrimitive.Scrollbar
       orientation="horizontal"
-      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-[160ms] ease-out hover:bg-[#2a2d2e] data-[orientation=horizontal]:h-2.5"
+      className="flex select-none touch-none p-0.5 bg-[#252526] transition-colors duration-150 ease-out hover:bg-[#2a2d2e] data-[orientation=horizontal]:h-2.5"
     >
       <ScrollAreaPrimitive.Thumb className="flex-1 bg-[#3c3c3c] rounded-[10px] relative" />
     </ScrollAreaPrimitive.Scrollbar>

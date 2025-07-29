@@ -10,9 +10,15 @@
     "test": "jest"
   },
   "jest": {
+    "preset": "ts-jest",
     "testEnvironment": "jsdom",
     "transform": {
-      "^.+\\.(js|jsx|ts|tsx)$": "babel-jest"
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.jest.json"
+        }
+      ]
     },
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
@@ -55,7 +61,7 @@
     "codemirror": "latest",
     "framer-motion": "latest",
     "lucide-react": "^0.454.0",
-    "mermaid": "latest",
+    "mermaid": "10.9.1",
     "next": "14.2.16",
     "next-themes": "latest",
     "postcss": "^8.4.0",
