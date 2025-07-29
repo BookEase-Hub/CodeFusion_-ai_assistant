@@ -73,10 +73,13 @@ export function Dashboard() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-2 flex-1 w-full">
                 <div className="flex justify-between text-sm">
-                  <span>5 free generations</span>
-                  <span>3 used</span>
+                  <span>
+                    {user.credits > 0
+                      ? `${user.credits} Free Trial Credits Remaining`
+                      : "End of Free Tier – Upgrade to Access Premium Features"}
+                  </span>
                 </div>
-                <Progress value={60} className="h-2" />
+                <Progress value={(user.credits / 14) * 100} className="h-2" />
               </div>
               <Button
                 className="bg-primary text-primary-foreground hover:bg-primary/90"

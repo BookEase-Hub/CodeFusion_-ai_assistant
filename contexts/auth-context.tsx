@@ -17,6 +17,7 @@ interface User {
   subscriptionStatus: "active" | "trial" | "expired"
   trialEndsAt?: string
   createdAt: string
+  credits: number
 }
 
 interface AuthContextProps {
