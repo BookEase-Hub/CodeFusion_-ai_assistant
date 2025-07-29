@@ -13,7 +13,7 @@
     "preset": "ts-jest",
     "testEnvironment": "jsdom",
     "transform": {
-      "^.+\\.tsx?$": "ts-jest"
+      "^.+\\.(js|jsx|ts|tsx)$": "babel-jest"
     },
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
@@ -60,7 +60,6 @@
     "next-themes": "latest",
     "postcss": "^8.4.0",
     "react": "^18",
-    "react-dom": "^18",
     "react-image-crop": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss": "^3.4.0",
@@ -69,6 +68,9 @@
     "zustand": "^4.4.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@testing-library/react-hooks": "^8.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22",
@@ -79,6 +81,7 @@
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
     "postcss": "^8.5",
+    "react-dom": "^18",
     "ts-jest": "^29.4.0",
     "typescript": "^5"
   }

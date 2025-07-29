@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react-hooks";
-import { act } from "react";
+import { act } from "react-dom/test-utils";
 import { AuthProvider, useAuth } from "./auth-context";
 import { useRouter } from "next/navigation";
 
