@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
-import { User, Shield, Bell, Palette, Code, Cpu, Moon, Sun, Monitor, Check, Zap } from "lucide-react"
+import { User, Shield, Bell, Palette, Code, Cpu, Moon, Sun, Monitor, Check } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,8 +16,6 @@ import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import { CodeAnalyzer } from "./code-analyzer"
-import Image from "next/image"
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("account")
@@ -109,13 +107,6 @@ export function Settings() {
                 <Shield className="mr-2 h-4 w-4" />
                 Security
               </TabsTrigger>
-              <TabsTrigger
-                value="code-analyzer"
-                className="justify-start px-3 py-2 h-9 font-normal data-[state=active]:bg-muted"
-              >
-                <Zap className="mr-2 h-4 w-4" />
-                Code Analyzer
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -200,12 +191,10 @@ export function Settings() {
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-                          <Image
+                          <img
                             src={account.icon || "/placeholder.svg"}
                             alt={account.name}
                             className="h-6 w-6 object-contain"
-                            width={24}
-                            height={24}
                           />
                         </div>
                         <div>
@@ -699,9 +688,6 @@ export function Settings() {
                   </Button>
                 </CardFooter>
               </Card>
-            </TabsContent>
-            <TabsContent value="code-analyzer">
-              <CodeAnalyzer />
             </TabsContent>
           </div>
         </div>
