@@ -82,12 +82,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password }),
       })
 
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || "Login failed")
+      let data
+      try {
+        data = await res.json()
+      } catch (err) {
+        console.error("Failed to parse JSON:", err)
+        const text = await res.text() // See raw response
+        console.error("Raw response:", text)
+        throw new Error("Server returned invalid JSON")
       }
 
-      const { user, token, expiresIn } = await res.json()
+      if (!res.ok) {
+        throw new Error(data?.message || "Login failed")
+      }
+
+      const { user, token, expiresIn } = data
 
       const tokenExpiry = new Date().getTime() + expiresIn * 1000
 
@@ -113,12 +122,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ name, email, password }),
       })
 
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || "Signup failed")
+      let data
+      try {
+        data = await res.json()
+      } catch (err) {
+        console.error("Failed to parse JSON:", err)
+        const text = await res.text() // See raw response
+        console.error("Raw response:", text)
+        throw new Error("Server returned invalid JSON")
       }
 
-      const { user, token, expiresIn } = await res.json()
+      if (!res.ok) {
+        throw new Error(data?.message || "Signup failed")
+      }
+
+      const { user, token, expiresIn } = data
       const tokenExpiry = new Date().getTime() + expiresIn * 1000
 
       localStorage.setItem("codefusion_user", JSON.stringify(user))
