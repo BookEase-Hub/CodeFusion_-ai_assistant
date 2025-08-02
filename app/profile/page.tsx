@@ -11,7 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, Camera, X, Check } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { AppLayout } from "@/components/app-layout"
 import ReactCrop, { type Crop } from "react-image-crop"
 import "react-image-crop/dist/ReactCrop.css"
 import {
@@ -157,263 +156,261 @@ export default function ProfilePage() {
   if (!user) return null
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information and account settings</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+        <p className="text-muted-foreground">Manage your personal information and account settings</p>
+      </div>
 
-        <Tabs defaultValue="profile" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="account">Account</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="profile" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Picture</CardTitle>
-                <CardDescription>
-                  Update your profile picture. This will be displayed on your profile and in comments.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={user.avatar || "/placeholder.svg?height=96&width=96"} alt={user.name} />
-                  <AvatarFallback className="text-2xl">{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="outline" asChild>
-                    <label htmlFor="avatar-upload" className="cursor-pointer">
-                      <Camera className="mr-2 h-4 w-4" />
-                      Change Avatar
-                      <input
-                        id="avatar-upload"
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={handleAvatarUpload}
-                      />
-                    </label>
-                  </Button>
-                  {user.avatar && (
-                    <Button
-                      variant="outline"
-                      className="text-destructive hover:text-destructive bg-transparent"
-                      onClick={async () => {
-                        setIsSubmitting(true)
-                        try {
-                          await updateAvatar("")
-                          toast({
-                            title: "Avatar removed",
-                            description: "Your avatar has been removed successfully.",
-                          })
-                        } catch (error) {
-                          toast({
-                            title: "Error",
-                            description: "There was a problem removing your avatar. Please try again.",
-                            variant: "destructive",
-                          })
-                        } finally {
-                          setIsSubmitting(false)
-                        }
-                      }}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <X className="mr-2 h-4 w-4" />
-                      )}
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <form onSubmit={handleSubmit}>
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>
-                    Update your personal information. This information will be displayed publicly.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Input
-                      id="bio"
-                      name="bio"
-                      value={formData.bio || ""}
-                      onChange={handleInputChange}
-                      disabled={isSubmitting}
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Picture</CardTitle>
+              <CardDescription>
+                Update your profile picture. This will be displayed on your profile and in comments.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={user.avatar || "/placeholder.svg?height=96&width=96"} alt={user.name} />
+                <AvatarFallback className="text-2xl">{user.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" asChild>
+                  <label htmlFor="avatar-upload" className="cursor-pointer">
+                    <Camera className="mr-2 h-4 w-4" />
+                    Change Avatar
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleAvatarUpload}
                     />
-                    <p className="text-sm text-muted-foreground">Brief description for your profile.</p>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
+                  </label>
+                </Button>
+                {user.avatar && (
                   <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setFormData({
-                        name: user.name,
-                        email: user.email,
-                        bio: user.bio || "",
-                      })
+                    variant="outline"
+                    className="text-destructive hover:text-destructive bg-transparent"
+                    onClick={async () => {
+                      setIsSubmitting(true)
+                      try {
+                        await updateAvatar("")
+                        toast({
+                          title: "Avatar removed",
+                          description: "Your avatar has been removed successfully.",
+                        })
+                      } catch (error) {
+                        toast({
+                          title: "Error",
+                          description: "There was a problem removing your avatar. Please try again.",
+                          variant: "destructive",
+                        })
+                      } finally {
+                        setIsSubmitting(false)
+                      }
                     }}
                     disabled={isSubmitting}
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
                     {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      "Save Changes"
+                      <X className="mr-2 h-4 w-4" />
                     )}
+                    Remove
                   </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </TabsContent>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="account" className="space-y-6">
-            <Card>
+          <Card>
+            <form onSubmit={handleSubmit}>
               <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Manage your account settings and preferences</CardDescription>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>
+                  Update your personal information. This information will be displayed publicly.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={user.name.toLowerCase().replace(/\s+/g, ".")} disabled />
-                  <p className="text-sm text-muted-foreground">
-                    Your username is automatically generated from your name.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="account-type">Account Type</Label>
-                  <Input id="account-type" value={user.role.charAt(0).toUpperCase() + user.role.slice(1)} disabled />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="account-created">Account Created</Label>
-                  <Input id="account-created" value={new Date().toLocaleDateString()} disabled />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Danger Zone</CardTitle>
-                <CardDescription>Irreversible and destructive actions</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-md border border-destructive/50 p-4">
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-lg font-medium">Delete Account</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Permanently delete your account and all of your content. This action cannot be undone.
-                    </p>
-                    <div className="mt-2">
-                      <Button variant="destructive">Delete Account</Button>
-                    </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      disabled={isSubmitting}
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Avatar Crop Dialog */}
-        <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Crop Avatar</DialogTitle>
-              <DialogDescription>
-                Adjust the crop area to select the portion of the image you want to use as your avatar.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4 max-h-[60vh] overflow-hidden">
-              {uploadedImage && (
-                <ReactCrop crop={crop} onChange={(c) => setCrop(c)} circularCrop aspect={1}>
-                  <img
-                    ref={imageRef}
-                    src={uploadedImage || "/placeholder.svg"}
-                    alt="Avatar preview"
-                    className="max-w-full max-h-[50vh] object-contain"
-                    crossOrigin="anonymous"
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Input
+                    id="bio"
+                    name="bio"
+                    value={formData.bio || ""}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
                   />
-                </ReactCrop>
+                  <p className="text-sm text-muted-foreground">Brief description for your profile.</p>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setFormData({
+                      name: user.name,
+                      email: user.email,
+                      bio: user.bio || "",
+                    })
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="account" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Settings</CardTitle>
+              <CardDescription>Manage your account settings and preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" value={user.name.toLowerCase().replace(/\s+/g, ".")} disabled />
+                <p className="text-sm text-muted-foreground">
+                  Your username is automatically generated from your name.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="account-type">Account Type</Label>
+                <Input id="account-type" value={user.role.charAt(0).toUpperCase() + user.role.slice(1)} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="account-created">Account Created</Label>
+                <Input id="account-created" value={new Date().toLocaleDateString()} disabled />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Danger Zone</CardTitle>
+              <CardDescription>Irreversible and destructive actions</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border border-destructive/50 p-4">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-lg font-medium">Delete Account</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Permanently delete your account and all of your content. This action cannot be undone.
+                  </p>
+                  <div className="mt-2">
+                    <Button variant="destructive">Delete Account</Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Avatar Crop Dialog */}
+      <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Crop Avatar</DialogTitle>
+            <DialogDescription>
+              Adjust the crop area to select the portion of the image you want to use as your avatar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 max-h-[60vh] overflow-hidden">
+            {uploadedImage && (
+              <ReactCrop crop={crop} onChange={(c) => setCrop(c)} circularCrop aspect={1}>
+                <img
+                  ref={imageRef}
+                  src={uploadedImage || "/placeholder.svg"}
+                  alt="Avatar preview"
+                  className="max-w-full max-h-[50vh] object-contain"
+                  crossOrigin="anonymous"
+                />
+              </ReactCrop>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setAvatarDialogOpen(false)
+                setUploadedImage(null)
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveAvatar}
+              disabled={isSubmitting}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Save
+                </>
               )}
-            </div>
-            <DialogFooter className="mt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setAvatarDialogOpen(false)
-                  setUploadedImage(null)
-                }}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSaveAvatar}
-                disabled={isSubmitting}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Save
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </AppLayout>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

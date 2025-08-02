@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
@@ -52,7 +53,7 @@ const navItems = [
   { name: "Settings", path: "/settings", icon: SettingsIcon, requiresAuth: true, feature: "Settings" },
 ]
 
-export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -78,6 +79,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         return // Don't navigate if not authenticated
       }
     }
+
     router.push(path)
     setIsMobileMenuOpen(false)
   }
@@ -114,7 +116,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 <button
                   key={item.path}
                   onClick={() => handleNavigation(item.path, item.requiresAuth, item.feature)}
-                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary relative ${
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
@@ -320,5 +322,3 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     </div>
   )
 }
-
-export default AppLayout

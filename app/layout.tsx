@@ -9,6 +9,7 @@ import { ProjectProvider } from "@/contexts/project-context"
 import { IntegrationProvider } from "@/contexts/integration-context"
 import { AppStateProvider } from "@/contexts/app-state-context"
 import { AuthModal } from "@/components/auth-modal"
+import AppLayout from "@/components/app-layout"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -30,7 +31,9 @@ export default function RootLayout({
             <ProjectProvider>
               <IntegrationProvider>
                 <AppStateProvider>
-                  {children}
+                  <AppLayout>
+                    {children}
+                  </AppLayout>
                   <AuthModal />
                   <Toaster />
                 </AppStateProvider>
