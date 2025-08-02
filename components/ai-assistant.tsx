@@ -104,6 +104,8 @@ const useRequireAuth = () => ({
   requireAuth: (feature: string) => true,
 })
 
+import { useActiveProject, useProjectsActions, Folder as ProjectFolder, File as ProjectFile } from "@/store/projects-store"
+
 // Types and Interfaces
 interface MenuItem {
   label: string
@@ -120,16 +122,6 @@ interface MenuCategory {
   label: string
   icon: React.ElementType
   items: MenuItem[]
-}
-
-interface FileTreeItem {
-  id: string
-  name: string
-  type: "file" | "folder"
-  path: string
-  children?: FileTreeItem[]
-  isOpen?: boolean
-  language?: string
 }
 
 // ScrollArea Component
@@ -736,67 +728,59 @@ function VSCodeMenu({
 
 // File Explorer Component
 function FileExplorer({
+  fileTree,
   onFileSelect,
   onNewFile,
   onNewFolder,
   onRefresh,
 }: {
-  onFileSelect: (path: string) => void
+  fileTree: ProjectFolder | null
+  onFileSelect: (path: string, file: ProjectFile) => void
   onNewFile: () => void
   onNewFolder: () => void
   onRefresh: () => void
 }) {
-  const [fileTree, setFileTree] = useState(sampleFileTree)
+  const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
 
-  const toggleFolder = (path: string) => {
-    const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === path) {
-          return { ...item, isOpen: !item.isOpen }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children) }
-        }
-        return item
-      })
-    }
-    setFileTree(updateTree(fileTree))
+  const toggleFolder = (folderId: string) => {
+    setOpenFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }))
   }
 
-  const renderFileTree = (items: FileTreeItem[], level = 0) => {
-    return items.map((item) => (
-      <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
-        <div
-          className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm ${level === 0 ? "mt-1" : ""}`}
-          onClick={() => {
-            if (item.type === "folder") {
-              toggleFolder(item.path)
-            } else {
-              onFileSelect(item.path)
-            }
-          }}
-        >
-          {item.type === "folder" ? (
-            <>
-              {item.isOpen ? (
-                <ChevronDown className="h-4 w-4 mr-1 text-gray-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 mr-1 text-gray-400" />
-              )}
+  const renderFileTree = (items: (ProjectFolder | ProjectFile)[], level = 0, pathPrefix = '') => {
+    return items.map((item) => {
+      const currentPath = pathPrefix ? `${pathPrefix}/${item.name}` : item.name;
+      if (item.type === 'folder') {
+        const isOpen = openFolders[item.id] ?? true;
+        return (
+          <div key={item.id}>
+            <div
+              className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm`}
+              style={{ paddingLeft: `${level * 16}px` }}
+              onClick={() => toggleFolder(item.id)}
+            >
+              {isOpen ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
               <Folder className="h-4 w-4 mr-1 text-blue-400" />
               <span>{item.name}</span>
-            </>
-          ) : (
-            <>
+            </div>
+            {isOpen && item.children && (
+              <div>{renderFileTree(item.children, level + 1, currentPath)}</div>
+            )}
+          </div>
+        )
+      } else {
+        return (
+          <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
+            <div
+              className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm`}
+              onClick={() => onFileSelect(currentPath, item)}
+            >
               <FileText className="h-4 w-4 mr-1 text-gray-400" />
               <span>{item.name}</span>
-            </>
-          )}
-        </div>
-        {item.type === "folder" && item.isOpen && item.children && (
-          <div>{renderFileTree(item.children, level + 1)}</div>
-        )}
-      </div>
-    ))
+            </div>
+          </div>
+        )
+      }
+    })
   }
 
   return (
@@ -837,428 +821,15 @@ function FileExplorer({
         </div>
       </div>
       <ScrollArea className="h-full">
-        <div className="p-2">{renderFileTree(fileTree)}</div>
+        <div className="p-2">
+          {fileTree ? renderFileTree(fileTree.children) : <p className="p-2">No project selected.</p>}
+        </div>
       </ScrollArea>
     </div>
   )
 }
 
-// Enhanced File Explorer with mkdir and touch
-function EnhancedFileExplorer({
-  onFileSelect,
-  onNewFile,
-  onNewFolder,
-  onRefresh,
-}: {
-  onFileSelect: (path: string) => void
-  onNewFile: (path: string, content: string) => void
-  onNewFolder: (path: string) => void
-  onRefresh: () => void
-}) {
-  const [fileTree, setFileTree] = useState<FileTreeItem[]>(sampleFileTree)
-  const { toast } = useToast()
 
-  const toggleFolder = (path: string) => {
-    const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === path) {
-          return { ...item, isOpen: !item.isOpen }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children) }
-        }
-        return item
-      })
-    }
-    setFileTree(updateTree(fileTree))
-  }
-
-  const createFile = (path: string, content = "") => {
-    const pathParts = path.split("/")
-    const filename = pathParts.pop()!
-    const parentPath = pathParts.join("/") || ""
-    const newFile: FileTreeItem = {
-      id: `file-${Date.now()}`,
-      name: filename,
-      type: "file",
-      path: path,
-      language: filename.split(".").pop() || "text",
-    }
-
-    const updateTree = (items: FileTreeItem[], parentPath: string): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === parentPath && item.type === "folder") {
-          return {
-            ...item,
-            isOpen: true,
-            children: [...(item.children || []), newFile],
-          }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children, parentPath) }
-        }
-        return item
-      })
-    }
-
-    setFileTree(parentPath ? updateTree(fileTree, parentPath) : [...fileTree, newFile])
-    onNewFile(path, content)
-    toast({ title: "File Created", description: `Created file: ${path}` })
-  }
-
-  const createFolder = (path: string) => {
-    const pathParts = path.split("/")
-    const folderName = pathParts.pop()!
-    const parentPath = pathParts.join("/") || ""
-    const newFolder: FileTreeItem = {
-      id: `folder-${Date.now()}`,
-      name: folderName,
-      type: "folder",
-      path: path,
-      children: [],
-      isOpen: false,
-    }
-
-    const updateTree = (items: FileTreeItem[], parentPath: string): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === parentPath && item.type === "folder") {
-          return {
-            ...item,
-            isOpen: true,
-            children: [...(item.children || []), newFolder],
-          }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children, parentPath) }
-        }
-        return item
-      })
-    }
-
-    setFileTree(parentPath ? updateTree(fileTree, parentPath) : [...fileTree, newFolder])
-    onNewFolder(path)
-    toast({ title: "Folder Created", description: `Created folder: ${path}` })
-  }
-
-  const renderFileTree = (items: FileTreeItem[], level = 0) => {
-    return items.map((item) => (
-      <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
-        <div
-          className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm ${level === 0 ? "mt-1" : ""}`}
-          onClick={() => {
-            if (item.type === "folder") {
-              toggleFolder(item.path)
-            } else {
-              onFileSelect(item.path)
-            }
-          }}
-        >
-          {item.type === "folder" ? (
-            <>
-              {item.isOpen ? (
-                <ChevronDown className="h-4 w-4 mr-1 text-gray-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 mr-1 text-gray-400" />
-              )}
-              <Folder className="h-4 w-4 mr-1 text-blue-400" />
-              <span>{item.name}</span>
-            </>
-          ) : (
-            <>
-              <FileText className="h-4 w-4 mr-1 text-gray-400" />
-              <span>{item.name}</span>
-            </>
-          )}
-        </div>
-        {item.type === "folder" && item.isOpen && item.children && (
-          <div>{renderFileTree(item.children, level + 1)}</div>
-        )}
-      </div>
-    ))
-  }
-
-  return (
-    <div className="h-full bg-[#252526] text-gray-300 text-sm overflow-y-auto">
-      <div className="p-2 font-semibold border-b border-[#3c3c3c] flex items-center justify-between">
-        <span>EXPLORER</span>
-        <div className="flex items-center">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createFile(`src/untitled-${Date.now()}.js`)}>
-                  <FileText className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New File</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createFolder(`src/folder-${Date.now()}`)}>
-                  <FolderPlus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New Folder</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRefresh}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-      <ScrollArea className="h-full">
-        <div className="p-2">{renderFileTree(fileTree)}</div>
-      </ScrollArea>
-    </div>
-  )
-}
-
-// Terminal Component
-function TerminalComponent() {
-  const [commandHistory, setCommandHistory] = useState<string[]>([
-    "Welcome to CodeFusion Terminal",
-    "Type 'help' to see available commands",
-  ])
-  const [currentCommand, setCurrentCommand] = useState("")
-  const terminalEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [commandHistory])
-
-  const executeCommand = (cmd: string) => {
-    setCommandHistory((prev) => [...prev, `$ ${cmd}`])
-    const command = cmd.trim().toLowerCase()
-
-    if (command === "help") {
-      setCommandHistory((prev) => [...prev, "Available commands: help, clear, ls, pwd, echo, date, npm, git"])
-    } else if (command === "clear") {
-      setCommandHistory(["Terminal cleared", "Type 'help' to see available commands"])
-    } else if (command === "ls") {
-      setCommandHistory((prev) => [...prev, "src/ public/ package.json tsconfig.json README.md"])
-    } else if (command === "pwd") {
-      setCommandHistory((prev) => [...prev, "/home/user/codefusion"])
-    } else if (command.startsWith("echo ")) {
-      const message = cmd.substring(5)
-      setCommandHistory((prev) => [...prev, message])
-    } else if (command === "date") {
-      setCommandHistory((prev) => [...prev, new Date().toString()])
-    } else if (command === "npm start") {
-      setCommandHistory((prev) => [...prev, "Starting development server...", "Local: http://localhost:3000"])
-    } else if (command === "git status") {
-      setCommandHistory((prev) => [
-        ...prev,
-        "On branch main",
-        "Your branch is up to date with 'origin/main'.",
-        "nothing to commit, working tree clean",
-      ])
-    } else if (command === "") {
-      // Do nothing for empty command
-    } else {
-      setCommandHistory((prev) => [...prev, `Command not found: ${cmd}. Type 'help' for available commands.`])
-    }
-    setCurrentCommand("")
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-white font-mono text-sm p-2">
-      <div className="flex-1 overflow-auto">
-        {commandHistory.map((line, index) => (
-          <div key={index} className="whitespace-pre-wrap mb-1">
-            {line}
-          </div>
-        ))}
-        <div ref={terminalEndRef} />
-      </div>
-      <div className="flex items-center mt-2">
-        <span className="text-green-400 mr-2">$</span>
-        <input
-          type="text"
-          value={currentCommand}
-          onChange={(e) => setCurrentCommand(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              executeCommand(currentCommand)
-            }
-          }}
-          className="flex-1 bg-transparent outline-none border-none text-white"
-          autoFocus
-          placeholder="Type a command..."
-        />
-      </div>
-    </div>
-  )
-}
-
-// Enhanced Terminal Component
-function EnhancedTerminalComponent({
-  onNewFile,
-  onNewFolder,
-}: {
-  onNewFile: (path: string, content: string) => void
-  onNewFolder: (path: string) => void
-}) {
-  const [commandHistory, setCommandHistory] = useState<string[]>(() => {
-    const saved = localStorage.getItem("terminalHistory")
-    return saved
-      ? JSON.parse(saved)
-      : ["Welcome to CodeFusion Terminal", "Type 'help' to see available commands"]
-  })
-  const [currentCommand, setCurrentCommand] = useState("")
-  const [historyIndex, setHistoryIndex] = useState(-1)
-  const terminalEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
-
-  useEffect(() => {
-    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [commandHistory])
-
-  useEffect(() => {
-    localStorage.setItem("terminalHistory", JSON.stringify(commandHistory))
-  }, [commandHistory])
-
-  const executeCommand = (cmd: string) => {
-    if (cmd.trim() === "") return
-
-    setCommandHistory((prev) => [...prev, `$ ${cmd}`])
-    const command = cmd.trim().toLowerCase()
-
-    if (command === "help") {
-      setCommandHistory((prev) => [
-        ...prev,
-        "Available commands: help, clear, ls, pwd, echo, date, npm, git, mkdir, touch",
-      ])
-    } else if (command === "clear") {
-      setCommandHistory(["Terminal cleared", "Type 'help' to see available commands"])
-    } else if (command === "ls") {
-      setCommandHistory((prev) => [...prev, "src/ public/ package.json tsconfig.json README.md"])
-    } else if (command === "pwd") {
-      setCommandHistory((prev) => [...prev, "/home/user/codefusion"])
-    } else if (command.startsWith("echo ")) {
-      const message = cmd.substring(5)
-      setCommandHistory((prev) => [...prev, message])
-    } else if (command === "date") {
-      setCommandHistory((prev) => [...prev, new Date().toString()])
-    } else if (command === "npm start") {
-      setCommandHistory((prev) => [...prev, "Starting development server...", "Local: http://localhost:3000"])
-    } else if (command === "git status") {
-      setCommandHistory((prev) => [
-        ...prev,
-        "On branch main",
-        "Your branch is up to date with 'origin/main'.",
-        "nothing to commit, working tree clean",
-      ])
-    } else if (command.startsWith("mkdir ")) {
-      const folderName = cmd.substring(6).trim()
-      if (folderName) {
-        onNewFolder(`src/${folderName}`)
-        setCommandHistory((prev) => [...prev, `Created directory: src/${folderName}`])
-      } else {
-        setCommandHistory((prev) => [...prev, "mkdir: missing directory name"])
-      }
-    } else if (command.startsWith("touch ")) {
-      const fileName = cmd.substring(6).trim()
-      if (fileName) {
-        onNewFile(`src/${fileName}`, "")
-        setCommandHistory((prev) => [...prev, `Created file: src/${fileName}`])
-      } else {
-        setCommandHistory((prev) => [...prev, "touch: missing file name"])
-      }
-    } else {
-      setCommandHistory((prev) => [...prev, `Command not found: ${cmd}. Type 'help' for available commands.`])
-    }
-    setCurrentCommand("")
-    setHistoryIndex(-1)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      executeCommand(currentCommand)
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault()
-      const newIndex = Math.min(historyIndex + 1, commandHistory.length - 1)
-      if (newIndex >= 0 && commandHistory[newIndex].startsWith("$ ")) {
-        setHistoryIndex(newIndex)
-        setCurrentCommand(commandHistory[newIndex].substring(2))
-      }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault()
-      const newIndex = Math.max(historyIndex - 1, -1)
-      setHistoryIndex(newIndex)
-      setCurrentCommand(newIndex >= 0 && commandHistory[newIndex].startsWith("$ ") ? commandHistory[newIndex].substring(2) : "")
-    }
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-white font-mono text-sm p-2">
-      <div className="flex-1 overflow-auto">
-        {commandHistory.map((line, index) => (
-          <div key={index} className="whitespace-pre-wrap mb-1">
-            {line}
-          </div>
-        ))}
-        <div ref={terminalEndRef} />
-      </div>
-      <div className="flex items-center mt-2">
-        <span className="text-green-400 mr-2">$</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={currentCommand}
-          onChange={(e) => setCurrentCommand(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent outline-none border-none text-white"
-          autoFocus
-          placeholder="Type a command..."
-        />
-      </div>
-    </div>
-  )
-}
-
-// Problems Panel Component
-function ProblemsPanel() {
-  const problems = [
-    { id: 1, type: "error", message: "Cannot find module 'react-router-dom'", file: "src/components/App.tsx", line: 2 },
-    {
-      id: 2,
-      type: "warning",
-      message: "Variable 'data' is declared but never used",
-      file: "src/hooks/useAuth.ts",
-      line: 15,
-    },
-    { id: 3, type: "info", message: "Consider using const instead of let here", file: "src/index.tsx", line: 5 },
-  ]
-
-  return (
-    <div className="h-full bg-[#1e1e1e] text-gray-300 text-sm p-2 overflow-y-auto">
-      <div className="mb-2 font-semibold">PROBLEMS (3)</div>
-      {problems.map((problem) => (
-        <div key={problem.id} className="flex items-start py-1 px-2 hover:bg-[#2a2d2e] rounded-sm cursor-pointer">
-          {problem.type === "error" ? (
-            <AlertCircle className="h-4 w-4 mr-2 text-red-500 mt-0.5" />
-          ) : problem.type === "warning" ? (
-            <AlertTriangle className="h-4 w-4 mr-2 text-yellow-500 mt-0.5" />
-          ) : (
-            <Info className="h-4 w-4 mr-2 text-blue-500 mt-0.5" />
-          )}
-          <div>
-            <div>{problem.message}</div>
-            <div className="text-gray-500 text-xs">
-              {problem.file}:{problem.line}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 const useFileManager = () => {
   const { toast } = useToast()
@@ -1335,152 +906,44 @@ const useFileManager = () => {
   }
 }
 
-const sampleFileTree: FileTreeItem[] = [
-  {
-    id: "src",
-    name: "src",
-    type: "folder",
-    path: "src",
-    isOpen: true,
-    children: [
-      {
-        id: "components",
-        name: "components",
-        type: "folder",
-        path: "src/components",
-        isOpen: true,
-        children: [
-          {
-            id: "app.tsx",
-            name: "App.tsx",
-            type: "file",
-            path: "src/components/App.tsx",
-            language: "typescript",
-          },
-          {
-            id: "header.tsx",
-            name: "Header.tsx",
-            type: "file",
-            path: "src/components/Header.tsx",
-            language: "typescript",
-          },
-        ],
-      },
-      {
-        id: "hooks",
-        name: "hooks",
-        type: "folder",
-        path: "src/hooks",
-        children: [
-          {
-            id: "use-auth.ts",
-            name: "useAuth.ts",
-            type: "file",
-            path: "src/hooks/useAuth.ts",
-            language: "typescript",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "package.json",
-    name: "package.json",
-    type: "file",
-    path: "package.json",
-    language: "json",
-  },
-]
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { useProjectsList } from "@/store/projects-store"
 
-const sampleFileContents: Record<string, { content: string; language: string }> = {
-  "src/components/App.tsx": {
-    language: "typescript",
-    content: `import React, { useState } from 'react';
+// ... (keep all the existing components like ScrollArea, CodeEditor, VSCodeMenu, etc.)
 
-function App() {
-  const [count, setCount] = useState(0);
+// Project Open Modal Component
+function ProjectOpenModal({ open, onOpenChange, onSelectProject }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSelectProject: (projectId: string) => void
+}) {
+  const projects = useProjectsList()
 
   return (
-    <div className="App">
-      <h1>Welcome to CodeFusion</h1>
-      <p>You clicked {count} times</p>
-      <button onClick={() => setCount(count + 1)}>
-        Click me
-      </button>
-    </div>
-  );
-}
-
-export default App;`,
-  },
-  "src/components/Header.tsx": {
-    language: "typescript",
-    content: `import React from 'react';
-
-function Header() {
-  return (
-    <header className="app-header">
-      <nav>
-        <ul>
-          <li><a href="/">Home</a></li>
-          <li><a href="/about">About</a></li>
-          <li><a href="/contact">Contact</a></li>
-        </ul>
-      </nav>
-    </header>
-  );
-}
-
-export default Header;`,
-  },
-  "src/hooks/useAuth.ts": {
-    language: "typescript",
-    content: `import { useState, useEffect } from 'react';
-
-export function useAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = localStorage.getItem('user');
-        if (user) {
-          setUser(JSON.parse(user));
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        console.error('Auth error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  return { user, isAuthenticated, loading };
-}`,
-  },
-  "package.json": {
-    language: "json",
-    content: `{
-  "name": "codefusion-app",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "typescript": "^4.9.5"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test"
-  }
-}`,
-  },
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Open Project</DialogTitle>
+          <DialogDescription>Select a project to open in the workspace.</DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 max-h-96 overflow-y-auto">
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              className="p-2 hover:bg-gray-700 cursor-pointer rounded"
+              onClick={() => {
+                onSelectProject(project.id)
+                onOpenChange(false)
+              }}
+            >
+              <p className="font-semibold">{project.name}</p>
+              <p className="text-sm text-gray-400">{project.description}</p>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 // Main VS Code Editor Component
@@ -1506,11 +969,15 @@ export const VSCodeEditor = forwardRef<
     removeEditorTab,
   } = useAppState()
 
+  const activeProject = useActiveProject()
+  const { setActiveProject, updateFileContent } = useProjectsActions()
+
   const [activeIcon, setActiveIcon] = useState("explorer")
   const [isResizing, setIsResizing] = useState(false)
   const [startY, setStartY] = useState(0)
   const [autoSave, setAutoSave] = useState(true)
   const [recentFiles, setRecentFiles] = useState<string[]>([])
+  const [isProjectModalOpen, setProjectModalOpen] = useState(false)
 
   const fileManager = useFileManager()
   const { toast } = useToast()
@@ -1532,21 +999,46 @@ export const VSCodeEditor = forwardRef<
     }
   }, [autoSave, activeEditorTab, editorTabs, toast, updateEditorTab])
 
-  const handleFileSelect = (path: string) => {
+  // Effect to sync editor tabs with the project store
+  useEffect(() => {
+    if (activeProject) {
+      editorTabs.forEach(tab => {
+        if (tab.path) {
+          const findFile = (nodes: (ProjectFile | ProjectFolder)[], path: string): ProjectFile | null => {
+            for (const node of nodes) {
+              if (node.type === 'file' && node.name === path) {
+                return node;
+              }
+              if (node.type === 'folder') {
+                const found = findFile(node.children, path.startsWith(node.name + '/') ? path.substring(node.name.length + 1) : path)
+                if (found) return found;
+              }
+            }
+            return null;
+          }
+          const fileInStore = findFile(activeProject.fileTree.children, tab.path)
+          if (fileInStore && fileInStore.content !== tab.content) {
+            updateEditorTab(tab.id, { content: fileInStore.content })
+          }
+        }
+      })
+    }
+  }, [activeProject, editorTabs, updateEditorTab])
+
+  const handleFileSelect = (path: string, file: ProjectFile) => {
     const existingTab = editorTabs.find((tab) => tab.path === path)
     if (existingTab) {
       updateAIAssistant({ activeEditorTab: existingTab.id })
       return
     }
 
-    const fileData = sampleFileContents[path]
-    if (!fileData) return
+    const language = file.name.split(".").pop() || "text"
 
     const newTab: EditorTab = {
       id: `tab-${Date.now()}`,
-      name: path.split("/").pop() || "",
-      content: fileData.content,
-      language: fileData.language,
+      name: file.name,
+      content: file.content,
+      language: language,
       path: path,
     }
 
@@ -1563,6 +1055,12 @@ export const VSCodeEditor = forwardRef<
 
   const handleContentChange = (value: string, tabId: string) => {
     updateEditorTab(tabId, { content: value, isDirty: true })
+    if (activeProject) {
+        const currentTab = editorTabs.find((tab) => tab.id === tabId)
+        if(currentTab?.path){
+            updateFileContent(activeProject.id, currentTab.path, value)
+        }
+    }
     onCodeChange?.(value)
   }
 
@@ -1610,15 +1108,19 @@ export const VSCodeEditor = forwardRef<
 
   const handleSave = () => {
     const currentTab = editorTabs.find((tab) => tab.id === activeEditorTab)
-    if (currentTab) {
-      if (currentTab.path) {
-        fileManager.saveFile(currentTab.content, currentTab.name)
+    if (currentTab && activeProject && currentTab.path) {
+        updateFileContent(activeProject.id, currentTab.path, currentTab.content)
         updateEditorTab(activeEditorTab!, { isDirty: false })
-      } else {
-        fileManager.saveAs(currentTab.content, currentTab.name, (filename) => {
-          updateEditorTab(activeEditorTab!, { name: filename, isDirty: false })
+        toast({
+            title: "File Saved",
+            description: `${currentTab.name} has been saved.`,
         })
-      }
+    } else {
+        toast({
+            title: "Cannot Save",
+            description: "No active file or project to save.",
+            variant: "destructive"
+        })
     }
   }
 
@@ -1633,8 +1135,8 @@ export const VSCodeEditor = forwardRef<
 
   const handleSaveAll = () => {
     editorTabs.forEach((tab) => {
-      if (tab.isDirty) {
-        fileManager.saveFile(tab.content, tab.name)
+      if (tab.isDirty && activeProject && tab.path) {
+        updateFileContent(activeProject.id, tab.path, tab.content)
         updateEditorTab(tab.id, { isDirty: false })
       }
     })
@@ -1674,15 +1176,15 @@ export const VSCodeEditor = forwardRef<
   // All menu action handlers
   const menuHandlers = {
     onNewFile: createNewFile,
-    onOpenFile: fileManager.openFile,
-    onOpenFolder: fileManager.openFolder,
+    onOpenFile: () => setProjectModalOpen(true),
+    onOpenFolder: () => setProjectModalOpen(true),
     onSave: handleSave,
     onSaveAs: handleSaveAs,
     onSaveAll: handleSaveAll,
     autoSave,
     onToggleAutoSave: () => setAutoSave(!autoSave),
     onNewWindow: () => toast({ title: "New Window", description: "Opening new window..." }),
-    onOpenWorkspace: () => toast({ title: "Open Workspace", description: "Opening workspace..." }),
+    onOpenWorkspace: () => setProjectModalOpen(true),
     onOpenRecent: () => toast({ title: "Open Recent", description: "Showing recent files..." }),
     onAddFolderToWorkspace: () => toast({ title: "Add Folder", description: "Adding folder to workspace..." }),
     onRevertFile: () => toast({ title: "Revert File", description: "File reverted to last saved version." }),
@@ -2008,10 +1510,10 @@ export const VSCodeEditor = forwardRef<
                     </TabsList>
                     <div className="h-[calc(100%-36px)]">
                       <TabsContent value="terminal" className="h-full">
-                        <TerminalComponent />
+                        <div>Terminal</div>
                       </TabsContent>
                       <TabsContent value="problems" className="h-full">
-                        <ProblemsPanel />
+                        <div>Problems</div>
                       </TabsContent>
                     </div>
                   </Tabs>
