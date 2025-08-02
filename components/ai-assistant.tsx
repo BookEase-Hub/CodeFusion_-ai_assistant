@@ -70,17 +70,23 @@ import {
 import { cn } from "@/lib/utils"
 import mermaid from "mermaid"
 
-import CodeMirror from "@uiw/react-codemirror"
+import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror"
 import { vscodeDark } from "@uiw/codemirror-theme-vscode"
 import { javascript } from "@codemirror/lang-javascript"
 import { json } from "@codemirror/lang-json"
 import { html } from "@codemirror/lang-html"
 import { python } from "@codemirror/lang-python"
 import { css } from "@codemirror/lang-css"
+import { EditorView } from "@codemirror/view"
+import { undo, redo, history } from "@codemirror/commands"
+import { openSearchPanel } from "@codemirror/search"
 import { useToast } from "@/components/ui/use-toast"
 import { VSCodeArchitecture } from "@/components/ui/vscode-architecture"
 import { useAppState } from "@/contexts/app-state-context"
-import type { EditorTab, ChatMessage } from "@/contexts/app-state-context"
+import type { EditorTab, ChatMessage, Project, FileNode } from "@/contexts/app-state-context"
+import { v4 as uuidv4 } from "uuid"
+import { EditorToolbar } from "@/components/EditorToolbar"
+import { ProjectExplorer } from "@/components/ProjectExplorer"
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -163,12 +169,14 @@ function CodeEditor({
   height,
   onChange,
   readOnly,
+  editorRef,
 }: {
   value: string
   language: string
   height: string
   onChange?: (value: string) => void
   readOnly?: boolean
+  editorRef?: React.RefObject<ReactCodeMirrorRef>
 }) {
   /* Map language prop to CodeMirror extensions */
   const extensions = React.useMemo(() => {
@@ -177,20 +185,21 @@ function CodeEditor({
       case "javascript":
       case "tsx":
       case "typescript":
-        return [javascript({ jsx: true, typescript: true })]
+        return [javascript({ jsx: true, typescript: true }), history()]
       case "json":
-        return [json()]
+        return [json(), history()]
       case "html":
-        return [html()]
+        return [html(), history()]
       case "python":
-        return [python()]
+        return [python(), history()]
       default:
-        return [] // fallback – plain‐text
+        return [history()] // fallback – plain‐text
     }
   }, [language])
 
   return (
     <CodeMirror
+      ref={editorRef}
       value={value}
       height={height}
       theme={vscodeDark}
@@ -734,290 +743,6 @@ function VSCodeMenu({
   )
 }
 
-// File Explorer Component
-function FileExplorer({
-  onFileSelect,
-  onNewFile,
-  onNewFolder,
-  onRefresh,
-}: {
-  onFileSelect: (path: string) => void
-  onNewFile: () => void
-  onNewFolder: () => void
-  onRefresh: () => void
-}) {
-  const [fileTree, setFileTree] = useState(sampleFileTree)
-
-  const toggleFolder = (path: string) => {
-    const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === path) {
-          return { ...item, isOpen: !item.isOpen }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children) }
-        }
-        return item
-      })
-    }
-    setFileTree(updateTree(fileTree))
-  }
-
-  const renderFileTree = (items: FileTreeItem[], level = 0) => {
-    return items.map((item) => (
-      <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
-        <div
-          className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm ${level === 0 ? "mt-1" : ""}`}
-          onClick={() => {
-            if (item.type === "folder") {
-              toggleFolder(item.path)
-            } else {
-              onFileSelect(item.path)
-            }
-          }}
-        >
-          {item.type === "folder" ? (
-            <>
-              {item.isOpen ? (
-                <ChevronDown className="h-4 w-4 mr-1 text-gray-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 mr-1 text-gray-400" />
-              )}
-              <Folder className="h-4 w-4 mr-1 text-blue-400" />
-              <span>{item.name}</span>
-            </>
-          ) : (
-            <>
-              <FileText className="h-4 w-4 mr-1 text-gray-400" />
-              <span>{item.name}</span>
-            </>
-          )}
-        </div>
-        {item.type === "folder" && item.isOpen && item.children && (
-          <div>{renderFileTree(item.children, level + 1)}</div>
-        )}
-      </div>
-    ))
-  }
-
-  return (
-    <div className="h-full bg-[#252526] text-gray-300 text-sm overflow-y-auto">
-      <div className="p-2 font-semibold border-b border-[#3c3c3c] flex items-center justify-between">
-        <span>EXPLORER</span>
-        <div className="flex items-center">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onNewFile}>
-                  <FileText className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New File</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onNewFolder}>
-                  <FolderPlus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New Folder</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRefresh}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-      <ScrollArea className="h-full">
-        <div className="p-2">{renderFileTree(fileTree)}</div>
-      </ScrollArea>
-    </div>
-  )
-}
-
-// Enhanced File Explorer with mkdir and touch
-function EnhancedFileExplorer({
-  onFileSelect,
-  onNewFile,
-  onNewFolder,
-  onRefresh,
-}: {
-  onFileSelect: (path: string) => void
-  onNewFile: (path: string, content: string) => void
-  onNewFolder: (path: string) => void
-  onRefresh: () => void
-}) {
-  const [fileTree, setFileTree] = useState<FileTreeItem[]>(sampleFileTree)
-  const { toast } = useToast()
-
-  const toggleFolder = (path: string) => {
-    const updateTree = (items: FileTreeItem[]): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === path) {
-          return { ...item, isOpen: !item.isOpen }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children) }
-        }
-        return item
-      })
-    }
-    setFileTree(updateTree(fileTree))
-  }
-
-  const createFile = (path: string, content = "") => {
-    const pathParts = path.split("/")
-    const filename = pathParts.pop()!
-    const parentPath = pathParts.join("/") || ""
-    const newFile: FileTreeItem = {
-      id: `file-${Date.now()}`,
-      name: filename,
-      type: "file",
-      path: path,
-      language: filename.split(".").pop() || "text",
-    }
-
-    const updateTree = (items: FileTreeItem[], parentPath: string): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === parentPath && item.type === "folder") {
-          return {
-            ...item,
-            isOpen: true,
-            children: [...(item.children || []), newFile],
-          }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children, parentPath) }
-        }
-        return item
-      })
-    }
-
-    setFileTree(parentPath ? updateTree(fileTree, parentPath) : [...fileTree, newFile])
-    onNewFile(path, content)
-    toast({ title: "File Created", description: `Created file: ${path}` })
-  }
-
-  const createFolder = (path: string) => {
-    const pathParts = path.split("/")
-    const folderName = pathParts.pop()!
-    const parentPath = pathParts.join("/") || ""
-    const newFolder: FileTreeItem = {
-      id: `folder-${Date.now()}`,
-      name: folderName,
-      type: "folder",
-      path: path,
-      children: [],
-      isOpen: false,
-    }
-
-    const updateTree = (items: FileTreeItem[], parentPath: string): FileTreeItem[] => {
-      return items.map((item) => {
-        if (item.path === parentPath && item.type === "folder") {
-          return {
-            ...item,
-            isOpen: true,
-            children: [...(item.children || []), newFolder],
-          }
-        } else if (item.children) {
-          return { ...item, children: updateTree(item.children, parentPath) }
-        }
-        return item
-      })
-    }
-
-    setFileTree(parentPath ? updateTree(fileTree, parentPath) : [...fileTree, newFolder])
-    onNewFolder(path)
-    toast({ title: "Folder Created", description: `Created folder: ${path}` })
-  }
-
-  const renderFileTree = (items: FileTreeItem[], level = 0) => {
-    return items.map((item) => (
-      <div key={item.id} style={{ paddingLeft: `${level * 16}px` }}>
-        <div
-          className={`flex items-center py-1 px-2 hover:bg-[#2a2d2e] cursor-pointer rounded-sm ${level === 0 ? "mt-1" : ""}`}
-          onClick={() => {
-            if (item.type === "folder") {
-              toggleFolder(item.path)
-            } else {
-              onFileSelect(item.path)
-            }
-          }}
-        >
-          {item.type === "folder" ? (
-            <>
-              {item.isOpen ? (
-                <ChevronDown className="h-4 w-4 mr-1 text-gray-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 mr-1 text-gray-400" />
-              )}
-              <Folder className="h-4 w-4 mr-1 text-blue-400" />
-              <span>{item.name}</span>
-            </>
-          ) : (
-            <>
-              <FileText className="h-4 w-4 mr-1 text-gray-400" />
-              <span>{item.name}</span>
-            </>
-          )}
-        </div>
-        {item.type === "folder" && item.isOpen && item.children && (
-          <div>{renderFileTree(item.children, level + 1)}</div>
-        )}
-      </div>
-    ))
-  }
-
-  return (
-    <div className="h-full bg-[#252526] text-gray-300 text-sm overflow-y-auto">
-      <div className="p-2 font-semibold border-b border-[#3c3c3c] flex items-center justify-between">
-        <span>EXPLORER</span>
-        <div className="flex items-center">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createFile(`src/untitled-${Date.now()}.js`)}>
-                  <FileText className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New File</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createFolder(`src/folder-${Date.now()}`)}>
-                  <FolderPlus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New Folder</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRefresh}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-      <ScrollArea className="h-full">
-        <div className="p-2">{renderFileTree(fileTree)}</div>
-      </ScrollArea>
-    </div>
-  )
-}
-
 // Terminal Component
 function TerminalComponent() {
   const [commandHistory, setCommandHistory] = useState<string[]>([
@@ -1335,154 +1060,6 @@ const useFileManager = () => {
   }
 }
 
-const sampleFileTree: FileTreeItem[] = [
-  {
-    id: "src",
-    name: "src",
-    type: "folder",
-    path: "src",
-    isOpen: true,
-    children: [
-      {
-        id: "components",
-        name: "components",
-        type: "folder",
-        path: "src/components",
-        isOpen: true,
-        children: [
-          {
-            id: "app.tsx",
-            name: "App.tsx",
-            type: "file",
-            path: "src/components/App.tsx",
-            language: "typescript",
-          },
-          {
-            id: "header.tsx",
-            name: "Header.tsx",
-            type: "file",
-            path: "src/components/Header.tsx",
-            language: "typescript",
-          },
-        ],
-      },
-      {
-        id: "hooks",
-        name: "hooks",
-        type: "folder",
-        path: "src/hooks",
-        children: [
-          {
-            id: "use-auth.ts",
-            name: "useAuth.ts",
-            type: "file",
-            path: "src/hooks/useAuth.ts",
-            language: "typescript",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "package.json",
-    name: "package.json",
-    type: "file",
-    path: "package.json",
-    language: "json",
-  },
-]
-
-const sampleFileContents: Record<string, { content: string; language: string }> = {
-  "src/components/App.tsx": {
-    language: "typescript",
-    content: `import React, { useState } from 'react';
-
-function App() {
-  const [count, setCount] = useState(0);
-
-  return (
-    <div className="App">
-      <h1>Welcome to CodeFusion</h1>
-      <p>You clicked {count} times</p>
-      <button onClick={() => setCount(count + 1)}>
-        Click me
-      </button>
-    </div>
-  );
-}
-
-export default App;`,
-  },
-  "src/components/Header.tsx": {
-    language: "typescript",
-    content: `import React from 'react';
-
-function Header() {
-  return (
-    <header className="app-header">
-      <nav>
-        <ul>
-          <li><a href="/">Home</a></li>
-          <li><a href="/about">About</a></li>
-          <li><a href="/contact">Contact</a></li>
-        </ul>
-      </nav>
-    </header>
-  );
-}
-
-export default Header;`,
-  },
-  "src/hooks/useAuth.ts": {
-    language: "typescript",
-    content: `import { useState, useEffect } from 'react';
-
-export function useAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const user = localStorage.getItem('user');
-        if (user) {
-          setUser(JSON.parse(user));
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        console.error('Auth error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  return { user, isAuthenticated, loading };
-}`,
-  },
-  "package.json": {
-    language: "json",
-    content: `{
-  "name": "codefusion-app",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "typescript": "^4.9.5"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test"
-  }
-}`,
-  },
-}
-
 // Main VS Code Editor Component
 export const VSCodeEditor = forwardRef<
   {
@@ -1498,12 +1075,24 @@ export const VSCodeEditor = forwardRef<
 >(({ onCodeChange }, ref) => {
   const {
     state: {
-      aiAssistant: { editorTabs, activeEditorTab, showExplorer, showTerminal, showProblems, activePanel, terminalHeight },
+      aiAssistant: {
+        editorTabs,
+        activeEditorTab,
+        showExplorer,
+        showTerminal,
+        showProblems,
+        activePanel,
+        terminalHeight,
+        currentProject,
+      },
     },
     updateAIAssistant,
     addEditorTab,
     updateEditorTab,
     removeEditorTab,
+    saveProject,
+    saveProjectAs,
+    setCurrentProject,
   } = useAppState()
 
   const [activeIcon, setActiveIcon] = useState("explorer")
@@ -1511,9 +1100,30 @@ export const VSCodeEditor = forwardRef<
   const [startY, setStartY] = useState(0)
   const [autoSave, setAutoSave] = useState(true)
   const [recentFiles, setRecentFiles] = useState<string[]>([])
+  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
 
   const fileManager = useFileManager()
   const { toast } = useToast()
+
+  useEffect(() => {
+    const view = editorRef.current?.view
+    if (view) {
+      const updateListener = EditorView.updateListener.of((update) => {
+        if (update.docChanged || update.selectionSet) {
+          const undoDepth = (view.state.field(history()) as any).undoDepth
+          const redoDepth = (view.state.field(history()) as any).redoDepth
+          setCanUndo(undoDepth > 0)
+          setCanRedo(redoDepth > 0)
+        }
+      })
+      view.dispatch({
+        effects: EditorView.scrollIntoView(0),
+        annotations: [EditorView.updateListener.of(updateListener)],
+      })
+    }
+  }, [activeEditorTab, editorRef.current])
 
   // Auto-save functionality
   useEffect(() => {
@@ -1539,18 +1149,21 @@ export const VSCodeEditor = forwardRef<
       return
     }
 
-    const fileData = sampleFileContents[path]
-    if (!fileData) return
+    // TODO: This needs to be connected to the actual project state, not sampleFileContents
+    // const fileData = sampleFileContents[path]
+    // if (!fileData) return
 
-    const newTab: EditorTab = {
-      id: `tab-${Date.now()}`,
-      name: path.split("/").pop() || "",
-      content: fileData.content,
-      language: fileData.language,
-      path: path,
-    }
+    // const newTab: EditorTab = {
+    //   id: `tab-${Date.now()}`,
+    //   name: path.split("/").pop() || "",
+    //   content: fileData.content,
+    //   language: fileData.language,
+    //   path: path,
+    // }
 
-    addEditorTab(newTab)
+    // addEditorTab(newTab)
+
+    toast({ title: "Open File", description: `TODO: Open ${path}` })
 
     // Add to recent files
     setRecentFiles((prev) => [path, ...prev.filter((p) => p !== path)].slice(0, 10))
@@ -1594,18 +1207,12 @@ export const VSCodeEditor = forwardRef<
     addEditorTab(newTab)
   }
 
-  const createNewFolder = () => {
-    toast({
-      title: "New Folder",
-      description: "New folder functionality would be implemented here.",
-    })
-  }
-
-  const refreshExplorer = () => {
-    toast({
-      title: "Refreshed",
-      description: "File explorer has been refreshed.",
-    })
+  const handleUndo = () => editorRef.current?.view && undo(editorRef.current.view)
+  const handleRedo = () => editorRef.current?.view && redo(editorRef.current.view)
+  const handleFind = () => {
+    if (editorRef.current?.view) {
+      openSearchPanel(editorRef.current.view)
+    }
   }
 
   const handleSave = () => {
@@ -1660,14 +1267,59 @@ export const VSCodeEditor = forwardRef<
     })
   }
 
-  const handleFolderLoad = (files: FileList) => {
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const content = e.target?.result as string
-        handleFileLoad(file, content)
-      }
-      reader.readAsText(file)
+  const handleFolderLoad = async (files: FileList) => {
+    if (files.length === 0) return
+
+    const fileEntries = Array.from(files)
+    const rootName = fileEntries[0].webkitRelativePath.split("/")[0]
+    const filePromises = fileEntries.map(
+      (file) =>
+        new Promise<{ path: string; content: string }>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = (e) => resolve({ path: file.webkitRelativePath, content: e.target?.result as string })
+          reader.onerror = reject
+          reader.readAsText(file)
+        }),
+    )
+
+    const allFiles = await Promise.all(filePromises)
+    const fileTree: FileNode[] = []
+    const nodeMap: { [path: string]: FileNode } = {}
+
+    allFiles.forEach(({ path, content }) => {
+      const parts = path.split("/")
+      parts.reduce((currentPath, part, index) => {
+        const newPath = index === 0 ? part : `${currentPath}/${part}`
+        if (!nodeMap[newPath]) {
+          const isFolder = index < parts.length - 1
+          const node: FileNode = {
+            id: uuidv4(),
+            name: part,
+            path: newPath,
+            type: isFolder ? "folder" : "file",
+            children: isFolder ? [] : undefined,
+            content: isFolder ? undefined : content,
+          }
+          nodeMap[newPath] = node
+
+          if (index === 0) {
+            fileTree.push(node)
+          } else {
+            const parentNode = nodeMap[currentPath]
+            if (parentNode && parentNode.children) {
+              parentNode.children.push(node)
+            }
+          }
+        }
+        return newPath
+      }, "")
+    })
+
+    const newProject: Project = { name: rootName, files: fileTree }
+    setCurrentProject(newProject)
+    toast({
+      title: "Folder Loaded",
+      description: `Project "${rootName}" has been loaded successfully.`,
     })
   }
 
@@ -1676,8 +1328,8 @@ export const VSCodeEditor = forwardRef<
     onNewFile: createNewFile,
     onOpenFile: fileManager.openFile,
     onOpenFolder: fileManager.openFolder,
-    onSave: handleSave,
-    onSaveAs: handleSaveAs,
+    onSave: saveProject,
+    onSaveAs: saveProjectAs,
     onSaveAll: handleSaveAll,
     autoSave,
     onToggleAutoSave: () => setAutoSave(!autoSave),
@@ -1690,13 +1342,17 @@ export const VSCodeEditor = forwardRef<
     onCloseFolder: () => toast({ title: "Close Folder", description: "Folder closed." }),
     onCloseWindow: () => toast({ title: "Close Window", description: "Window closed." }),
     onExit: () => toast({ title: "Exit", description: "Exiting application..." }),
-    onUndo: () => toast({ title: "Undo", description: "Undo action performed." }),
-    onRedo: () => toast({ title: "Redo", description: "Redo action performed." }),
-    onCut: () => toast({ title: "Cut", description: "Content cut to clipboard." }),
-    onCopy: () => toast({ title: "Copy", description: "Content copied to clipboard." }),
-    onPaste: () => toast({ title: "Paste", description: "Content pasted from clipboard." }),
-    onFind: () => toast({ title: "Find", description: "Opening find dialog..." }),
-    onReplace: () => toast({ title: "Replace", description: "Opening replace dialog..." }),
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onCut: () => document.execCommand("cut"),
+    onCopy: () => document.execCommand("copy"),
+    onPaste: () => navigator.clipboard.readText().then(text => {
+      if(editorRef.current?.view) {
+        editorRef.current.view.dispatch(editorRef.current.view.state.replaceSelection(text))
+      }
+    }),
+    onFind: handleFind,
+    onReplace: handleFind,
     onSelectAll: () => toast({ title: "Select All", description: "All content selected." }),
     onExpandSelection: () => toast({ title: "Expand Selection", description: "Selection expanded." }),
     onShrinkSelection: () => toast({ title: "Shrink Selection", description: "Selection shrunk." }),
@@ -1898,17 +1554,24 @@ export const VSCodeEditor = forwardRef<
         {/* Sidebar */}
         {showExplorer && (
           <div className="w-64 h-full border-r border-[#252526]">
-            <FileExplorer
-              onFileSelect={handleFileSelect}
-              onNewFile={createNewFile}
-              onNewFolder={createNewFolder}
-              onRefresh={refreshExplorer}
-            />
+            <ProjectExplorer />
           </div>
         )}
 
         {/* Main Editor Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          <EditorToolbar
+            projectName={currentProject?.name || "Untitled Project"}
+            onSave={saveProject}
+            onSaveAs={saveProjectAs}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onFind={handleFind}
+            onReplace={handleFind}
+          />
+
           {/* Tab Bar */}
           <div className="flex items-center border-b border-[#252526] bg-[#252526]">
             <ScrollArea orientation="horizontal" className="w-full">
@@ -1955,6 +1618,7 @@ export const VSCodeEditor = forwardRef<
                 {editorTabs.map((tab) => (
                   <TabsContent key={tab.id} value={tab.id} className="h-full">
                     <CodeEditor
+                      editorRef={editorRef}
                       value={tab.content}
                       language={tab.language || "javascript"}
                       height="100%"

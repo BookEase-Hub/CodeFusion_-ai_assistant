@@ -43,6 +43,7 @@
     "clsx": "^2.1.1",
     "codemirror": "latest",
     "framer-motion": "latest",
+    "idb": "^8.0.3",
     "lucide-react": "^0.454.0",
     "mermaid": "latest",
     "next": "14.2.16",
@@ -55,12 +56,14 @@
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.0.0",
+    "uuid": "^11.1.0",
     "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/uuid": "^10.0.0",
     "eslint": "^8.0.0",
     "eslint-config-next": "14.2.16",
     "postcss": "^8.5",
