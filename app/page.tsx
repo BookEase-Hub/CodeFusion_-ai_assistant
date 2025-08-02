@@ -16,13 +16,15 @@ export default function HomePage() {
     }
   }, [isLoading, isAuthenticated, router])
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard")
+    }
+  }, [isLoading, isAuthenticated, router])
+
   if (isLoading || !isAuthenticated) {
     return null // Will redirect to login
   }
 
-  return (
-    <AppLayout>
-      <Dashboard />
-    </AppLayout>
-  )
+  return null // Or a loading spinner, while redirecting to /dashboard
 }
