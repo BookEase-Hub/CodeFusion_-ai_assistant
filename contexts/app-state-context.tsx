@@ -1,6 +1,71 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { type Project, type FileNode } from "@/hooks/use-app-state"
+import { v4 as uuidv4 } from "uuid"
+import { projectManager } from "@/services/project-manager"
+
+// Recursive helper to find and update a node in the tree
+const updateNodeInTree = (
+  nodes: FileNode[],
+  nodeId: string,
+  update: Partial<FileNode>,
+): FileNode[] => {
+  return nodes.map((node) => {
+    if (node.id === nodeId) {
+      return { ...node, ...update }
+    }
+    if (node.children) {
+      return { ...node, children: updateNodeInTree(node.children, nodeId, update) }
+    }
+    return node
+  })
+}
+
+// Recursive helper to delete a node from the tree
+const deleteNodeFromTree = (nodes: FileNode[], nodeId: string): FileNode[] => {
+  return nodes.reduce((acc, node) => {
+    if (node.id === nodeId) {
+      return acc // Skip the node to delete it
+    }
+    if (node.children) {
+      const newChildren = deleteNodeFromTree(node.children, nodeId)
+      if (newChildren.length !== node.children.length) {
+        acc.push({ ...node, children: newChildren })
+      } else {
+        acc.push(node)
+      }
+    } else {
+      acc.push(node)
+    }
+    return acc
+  }, [] as FileNode[])
+}
+
+// Recursive helper to add a node to the tree
+const addNodeToTree = (
+  nodes: FileNode[],
+  parentId: string | null,
+  newNode: FileNode,
+): FileNode[] => {
+  if (parentId === null) {
+    return [...nodes, newNode]
+  }
+  return nodes.map((node) => {
+    if (node.id === parentId) {
+      if (node.type === "folder") {
+        return {
+          ...node,
+          children: [...(node.children || []), newNode],
+        }
+      }
+    }
+    if (node.children) {
+      return { ...node, children: addNodeToTree(node.children, parentId, newNode) }
+    }
+    return node
+  })
+}
 
 // Types for persistent state
 interface EditorTab {
@@ -19,7 +84,7 @@ interface ChatMessage {
   code?: { language: string; value: string }
 }
 
-interface ProjectState {
+interface ProjectsListState {
   searchQuery: string
   activeTab: string
   selectedProjects: string[]
@@ -48,10 +113,11 @@ interface AppState {
     showProblems: boolean
     activePanel: string | null
     terminalHeight: number
+    currentProject: Project | null
   }
 
   // Projects State
-  projects: ProjectState
+  projects: ProjectsListState
 
   // API Hub State
   apiHub: APIHubState
@@ -67,8 +133,9 @@ interface AppState {
 
 interface AppStateContextType {
   state: AppState
+  setCurrentProject: (project: Project | null) => void
   updateAIAssistant: (updates: Partial<AppState["aiAssistant"]>) => void
-  updateProjects: (updates: Partial<ProjectState>) => void
+  updateProjects: (updates: Partial<ProjectsListState>) => void
   updateAPIHub: (updates: Partial<APIHubState>) => void
   updateSettings: (updates: Partial<SettingsState>) => void
   updateDashboard: (updates: Partial<AppState["dashboard"]>) => void
@@ -79,6 +146,13 @@ interface AppStateContextType {
   clearChatMessages: () => void
   persistState: () => void
   loadState: () => void
+  createFile: (name: string, parentId: string | null) => void
+  createFolder: (name: string, parentId: string | null) => void
+  deleteNode: (nodeId: string) => void
+  renameNode: (nodeId: string, newName: string) => void
+  saveProject: () => Promise<void>
+  saveProjectAs: (newProjectName: string) => Promise<void>
+  resetWorkspace: () => void
 }
 
 const defaultState: AppState = {
@@ -99,6 +173,7 @@ const defaultState: AppState = {
     showProblems: false,
     activePanel: "terminal",
     terminalHeight: 200,
+    currentProject: null,
   },
   projects: {
     searchQuery: "",
@@ -165,7 +240,98 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }))
   }
 
-  const updateProjects = (updates: Partial<ProjectState>) => {
+  const setCurrentProject = (project: Project | null) => {
+    setState((prev) => ({
+      ...prev,
+      aiAssistant: {
+        ...prev.aiAssistant,
+        currentProject: project,
+      },
+    }))
+  }
+
+  const createFile = (name: string, parentId: string | null) => {
+    if (!state.aiAssistant.currentProject) return
+
+    const newFile: FileNode = {
+      id: uuidv4(),
+      name,
+      type: "file",
+      path: parentId ? `${parentId}/${name}` : name, // This needs improvement
+      content: "",
+    }
+
+    const newFiles = addNodeToTree(state.aiAssistant.currentProject.files, parentId, newFile)
+    const newProject = { ...state.aiAssistant.currentProject, files: newFiles }
+    setCurrentProject(newProject)
+  }
+
+  const resetWorkspace = () => {
+    setState((prev) => ({
+      ...prev,
+      aiAssistant: {
+        ...prev.aiAssistant,
+        currentProject: null,
+        editorTabs: [],
+        activeEditorTab: null,
+      },
+    }))
+  }
+
+  const saveProject = async () => {
+    if (!state.aiAssistant.currentProject) {
+      throw new Error("No active project to save.")
+    }
+    await projectManager.saveProject(state.aiAssistant.currentProject)
+    // Here you might want to clear dirty flags on files
+  }
+
+  const saveProjectAs = async (newProjectName: string) => {
+    if (!state.aiAssistant.currentProject) {
+      throw new Error("No active project to save.")
+    }
+    const newProject: Project = {
+      ...state.aiAssistant.currentProject,
+      name: newProjectName,
+    }
+    await projectManager.saveProject(newProject)
+    resetWorkspace()
+  }
+
+  const createFolder = (name: string, parentId: string | null) => {
+    if (!state.aiAssistant.currentProject) return
+
+    const newFolder: FileNode = {
+      id: uuidv4(),
+      name,
+      type: "folder",
+      path: parentId ? `${parentId}/${name}` : name, // This needs improvement
+      children: [],
+    }
+
+    const newFiles = addNodeToTree(state.aiAssistant.currentProject.files, parentId, newFolder)
+    const newProject = { ...state.aiAssistant.currentProject, files: newFiles }
+    setCurrentProject(newProject)
+  }
+
+  const deleteNode = (nodeId: string) => {
+    if (!state.aiAssistant.currentProject) return
+
+    const newFiles = deleteNodeFromTree(state.aiAssistant.currentProject.files, nodeId)
+    const newProject = { ...state.aiAssistant.currentProject, files: newFiles }
+    setCurrentProject(newProject)
+  }
+
+  const renameNode = (nodeId: string, newName: string) => {
+    if (!state.aiAssistant.currentProject) return
+
+    // This is a simplified rename, path update logic will be needed
+    const newFiles = updateNodeInTree(state.aiAssistant.currentProject.files, nodeId, { name: newName })
+    const newProject = { ...state.aiAssistant.currentProject, files: newFiles }
+    setCurrentProject(newProject)
+  }
+
+  const updateProjects = (updates: Partial<ProjectsListState>) => {
     setState((prev) => ({
       ...prev,
       projects: { ...prev.projects, ...updates },
@@ -259,6 +425,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     <AppStateContext.Provider
       value={{
         state,
+        setCurrentProject,
         updateAIAssistant,
         updateProjects,
         updateAPIHub,
@@ -271,6 +438,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         clearChatMessages,
         persistState,
         loadState,
+        createFile,
+        createFolder,
+        deleteNode,
+        renameNode,
+        saveProject,
+        saveProjectAs,
+        resetWorkspace,
       }}
     >
       {children}
