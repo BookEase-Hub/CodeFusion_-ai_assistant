@@ -2,7 +2,25 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Plug, Plus, Check, X, AlertCircle, RefreshCw, ExternalLink, SettingsIcon, Search, Zap } from "lucide-react"
+import {
+  Plug,
+  Plus,
+  Check,
+  X,
+  AlertCircle,
+  RefreshCw,
+  ExternalLink,
+  SettingsIcon,
+  Search,
+  Zap,
+  GitBranch,
+  Database,
+  Cloud,
+  CreditCard,
+  Brain,
+  Loader2,
+  Download,
+} from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,111 +38,58 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRequireAuth } from "@/hooks/use-require-auth"
-import { useToast } from "@/components/ui/use-toast"
+import { useIntegrations } from "@/contexts/integration-context"
+import { IntegrationConfigModal } from "@/components/integration-config-modal"
+import { GitHubCloneModal } from "@/components/github-clone-modal"
+import { toast } from "@/components/ui/use-toast"
 
-const apiIntegrations = [
-  {
-    id: "1",
-    name: "GitHub",
-    description: "Connect to your GitHub repositories",
-    status: "connected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "10 minutes ago",
-    category: "version-control",
-    apiCalls: 156,
-  },
-  {
-    id: "2",
-    name: "OpenAI",
-    description: "AI-powered code generation and assistance",
-    status: "connected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "1 hour ago",
-    category: "ai",
-    apiCalls: 89,
-  },
-  {
-    id: "3",
-    name: "AWS",
-    description: "Cloud infrastructure and deployment",
-    status: "disconnected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "Never",
-    category: "cloud",
-    apiCalls: 0,
-  },
-  {
-    id: "4",
-    name: "MongoDB",
-    description: "NoSQL database integration",
-    status: "connected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "2 days ago",
-    category: "database",
-    apiCalls: 234,
-  },
-  {
-    id: "5",
-    name: "Stripe",
-    description: "Payment processing integration",
-    status: "error",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "Failed 3 hours ago",
-    category: "payment",
-    apiCalls: 45,
-  },
-  {
-    id: "6",
-    name: "Vercel",
-    description: "Deployment and hosting platform",
-    status: "connected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "5 hours ago",
-    category: "deployment",
-    apiCalls: 67,
-  },
-  {
-    id: "7",
-    name: "Supabase",
-    description: "Open source Firebase alternative",
-    status: "disconnected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "Never",
-    category: "database",
-    apiCalls: 0,
-  },
-  {
-    id: "8",
-    name: "Hugging Face",
-    description: "AI models and datasets",
-    status: "disconnected",
-    icon: "/placeholder.svg?height=40&width=40",
-    lastSync: "Never",
-    category: "ai",
-    apiCalls: 0,
-  },
-]
+const integrationIcons = {
+  github: GitBranch,
+  openai: Brain,
+  mongodb: Database,
+  vercel: Cloud,
+  stripe: CreditCard,
+  aws: Cloud,
+  supabase: Database,
+  huggingface: Brain,
+}
+
+const integrationCategories = {
+  github: "version-control",
+  openai: "ai",
+  mongodb: "database",
+  vercel: "deployment",
+  stripe: "payment",
+  aws: "cloud",
+  supabase: "database",
+  huggingface: "ai",
+}
 
 export function APIHub() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [showAddIntegrationDialog, setShowAddIntegrationDialog] = useState(false)
-  const [newIntegration, setNewIntegration] = useState({
-    type: "",
-    apiKey: "",
-    autoSync: false,
-  })
+  const [configModalOpen, setConfigModalOpen] = useState(false)
+  const [selectedIntegration, setSelectedIntegration] = useState<string | null>(null)
+  const [githubCloneModalOpen, setGithubCloneModalOpen] = useState(false)
   const { requireAuth } = useRequireAuth()
-  const { toast } = useToast()
 
-  const filteredIntegrations = apiIntegrations.filter((integration) => {
-    const matchesSearch =
-      integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const { integrations, connectIntegration, disconnectIntegration, syncIntegration, getIntegration } = useIntegrations()
+
+  const integrationsList = Object.values(integrations).map((integration) => ({
+    ...integration,
+    icon: integrationIcons[integration.id as keyof typeof integrationIcons] || Plug,
+    category: integrationCategories[integration.id as keyof typeof integrationCategories] || "other",
+  }))
+
+  const filteredIntegrations = integrationsList.filter((integration) => {
+    const matchesSearch = integration.name.toLowerCase().includes(searchQuery.toLowerCase())
+
     if (activeTab === "all") return matchesSearch
     if (activeTab === "connected") return matchesSearch && integration.status === "connected"
     if (activeTab === "disconnected") return matchesSearch && integration.status === "disconnected"
     if (activeTab === "error") return matchesSearch && integration.status === "error"
+
     return matchesSearch && integration.category === activeTab
   })
 
@@ -146,91 +111,89 @@ export function APIHub() {
     }
   }
 
-  const handleIntegrationAction = (action: string, integration: string) => {
-    if (requireAuth(`${action} the ${integration} integration`)) {
-      toast({
-        title: "Action Completed",
-        description: `Successfully ${action} ${integration} integration.`,
-        duration: 3000,
-      })
-    }
+  const handleConnect = async (integrationId: string) => {
+    if (!requireAuth(`connecting ${integrations[integrationId]?.name}`)) return
+
+    setSelectedIntegration(integrationId)
+    setConfigModalOpen(true)
   }
 
-  const handleCreateIntegration = () => {
-    if (!newIntegration.type || !newIntegration.apiKey) {
+  const handleDisconnect = async (integrationId: string) => {
+    if (!requireAuth(`disconnecting ${integrations[integrationId]?.name}`)) return
+
+    await disconnectIntegration(integrationId)
+  }
+
+  const handleSync = async (integrationId: string) => {
+    if (!requireAuth(`syncing ${integrations[integrationId]?.name}`)) return
+
+    await syncIntegration(integrationId)
+  }
+
+  const handleConfigure = (integrationId: string) => {
+    if (!requireAuth(`configuring ${integrations[integrationId]?.name}`)) return
+
+    setSelectedIntegration(integrationId)
+    setConfigModalOpen(true)
+  }
+
+  const handleGitHubClone = () => {
+    if (!requireAuth("cloning GitHub repositories")) return
+
+    const githubIntegration = getIntegration("github")
+    if (githubIntegration?.status !== "connected") {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "GitHub Not Connected",
+        description: "Please connect your GitHub account first.",
         variant: "destructive",
-        duration: 3000,
       })
       return
     }
 
-    toast({
-      title: "Integration Added",
-      description: `Successfully added ${newIntegration.type} integration.`,
-      duration: 3000,
-    })
-
-    setShowAddIntegrationDialog(false)
-    setNewIntegration({ type: "", apiKey: "", autoSync: false })
+    setGithubCloneModalOpen(true)
   }
 
-  const connectedIntegrations = apiIntegrations.filter((api) => api.status === "connected")
-  const totalApiCalls = connectedIntegrations.reduce((sum, api) => sum + api.apiCalls, 0)
+  const handleCloneComplete = (project: any, action: "editor" | "chat") => {
+    toast({
+      title: "Repository Cloned Successfully",
+      description: `${project.name} is now available in your ${action === "editor" ? "Code Editor" : "AI Chat"}.`,
+    })
+
+    // Here you would typically navigate to the appropriate tab
+    // For now, we'll just show a success message
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "connected":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+      case "connecting":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+      case "error":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "connected":
+        return "Connected"
+      case "connecting":
+        return "Connecting..."
+      case "error":
+        return "Error"
+      default:
+        return "Disconnected"
+    }
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">API Hub</h1>
         <p className="text-muted-foreground">Manage your API integrations and connections</p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Connected APIs</CardTitle>
-            <Plug className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{connectedIntegrations.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {apiIntegrations.filter((api) => api.status === "error").length} with errors
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">API Calls Today</CardTitle>
-            <Zap className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalApiCalls}</div>
-            <p className="text-xs text-muted-foreground">+12% from yesterday</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-            <Check className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">98.5%</div>
-            <p className="text-xs text-muted-foreground">Last 24 hours</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Response Time</CardTitle>
-            <RefreshCw className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">245ms</div>
-            <p className="text-xs text-muted-foreground">Average response</p>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
@@ -254,8 +217,9 @@ export function APIHub() {
           <TabsTrigger value="database">Database</TabsTrigger>
           <TabsTrigger value="cloud">Cloud</TabsTrigger>
           <TabsTrigger value="deployment">Deployment</TabsTrigger>
+          <TabsTrigger value="version-control">Version Control</TabsTrigger>
+          <TabsTrigger value="payment">Payment</TabsTrigger>
         </TabsList>
-
         <TabsContent value={activeTab} className="mt-6">
           {filteredIntegrations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -265,132 +229,139 @@ export function APIHub() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredIntegrations.map((integration) => (
-                <Card key={integration.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                        <img
-                          src={integration.icon || "/placeholder.svg"}
-                          alt={integration.name}
-                          className="h-8 w-8 object-contain"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {integration.name}
-                          {integration.status === "connected" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                            >
-                              Connected
-                            </Badge>
-                          )}
-                          {integration.status === "disconnected" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                            >
-                              Disconnected
-                            </Badge>
-                          )}
-                          {integration.status === "error" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                            >
-                              Error
-                            </Badge>
-                          )}
-                        </CardTitle>
-                        <CardDescription>{integration.description}</CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Last sync:</span>
-                        <span>{integration.lastSync}</span>
-                      </div>
-                      {integration.status === "connected" && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">API calls today:</span>
-                          <span className="font-medium">{integration.apiCalls}</span>
+              {filteredIntegrations.map((integration) => {
+                const IconComponent = integration.icon
+                return (
+                  <Card key={integration.id} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                          <IconComponent className="h-6 w-6" />
                         </div>
-                      )}
-                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            {integration.name}
+                            <Badge variant="outline" className={getStatusColor(integration.status)}>
+                              {integration.status === "connecting" && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                              {getStatusText(integration.status)}
+                            </Badge>
+                          </CardTitle>
+                          <CardDescription>
+                            {integration.id === "github" && "Connect to your GitHub repositories"}
+                            {integration.id === "openai" && "AI-powered code generation and assistance"}
+                            {integration.id === "mongodb" && "NoSQL database integration"}
+                            {integration.id === "vercel" && "Deployment and hosting platform"}
+                            {integration.id === "stripe" && "Payment processing integration"}
+                            {integration.id === "aws" && "Cloud infrastructure and deployment"}
+                            {integration.id === "supabase" && "Open source Firebase alternative"}
+                            {integration.id === "huggingface" && "AI models and datasets"}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Last sync: {integration.lastSync}</span>
                         <Badge variant="outline">{integration.category}</Badge>
                       </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between border-t pt-4">
-                    {integration.status === "connected" ? (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 bg-transparent"
-                          onClick={() => handleIntegrationAction("syncing", integration.name)}
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          Sync
-                        </Button>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 bg-transparent"
-                            onClick={() => handleIntegrationAction("configuring", integration.name)}
-                          >
-                            <SettingsIcon className="h-3 w-3" />
-                            Configure
-                          </Button>
+                      {integration.error && (
+                        <div className="mt-2 flex items-center gap-1 text-sm text-destructive">
+                          <AlertCircle className="h-3 w-3" />
+                          {integration.error}
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex justify-between border-t pt-4">
+                      {integration.status === "connected" ? (
+                        <>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 bg-transparent"
+                              onClick={() => handleSync(integration.id)}
+                              disabled={integration.status === "connecting"}
+                            >
+                              {integration.status === "connecting" ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                              Sync
+                            </Button>
+
+                            {integration.id === "github" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 bg-transparent"
+                                onClick={handleGitHubClone}
+                              >
+                                <Download className="h-3 w-3" />
+                                Clone & Push
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 bg-transparent"
+                              onClick={() => handleConfigure(integration.id)}
+                            >
+                              <SettingsIcon className="h-3 w-3" />
+                              Configure
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 text-destructive hover:text-destructive bg-transparent"
+                              onClick={() => handleDisconnect(integration.id)}
+                            >
+                              <X className="h-3 w-3" />
+                              Disconnect
+                            </Button>
+                          </div>
+                        </>
+                      ) : integration.status === "error" ? (
+                        <>
                           <Button
                             variant="outline"
                             size="sm"
                             className="gap-1 text-destructive hover:text-destructive bg-transparent"
-                            onClick={() => handleIntegrationAction("disconnecting", integration.name)}
                           >
-                            <X className="h-3 w-3" />
-                            Disconnect
+                            <AlertCircle className="h-3 w-3" />
+                            View Error
                           </Button>
-                        </div>
-                      </>
-                    ) : integration.status === "error" ? (
-                      <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 bg-transparent"
+                            onClick={() => handleConnect(integration.id)}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Retry
+                          </Button>
+                        </>
+                      ) : (
                         <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 text-destructive hover:text-destructive bg-transparent"
-                          onClick={() => handleIntegrationAction("viewing error details for", integration.name)}
+                          className="w-full gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                          onClick={() => handleConnect(integration.id)}
+                          disabled={integration.status === "connecting"}
                         >
-                          <AlertCircle className="h-3 w-3" />
-                          View Error
+                          {integration.status === "connecting" ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Plug className="h-3 w-3" />
+                          )}
+                          Connect
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 bg-transparent"
-                          onClick={() => handleIntegrationAction("retrying", integration.name)}
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                          Retry
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        className="w-full gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                        onClick={() => handleIntegrationAction("connecting", integration.name)}
-                      >
-                        <Plug className="h-3 w-3" />
-                        Connect
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
-              ))}
+                      )}
+                    </CardFooter>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
@@ -403,52 +374,52 @@ export function APIHub() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {connectedIntegrations.slice(0, 3).map((api, i) => (
-              <div
-                key={i}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b last:border-0 last:pb-0"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                    <img src={api.icon || "/placeholder.svg"} alt={api.name} className="h-8 w-8 object-contain" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">{api.name}</h3>
-                    <p className="text-sm text-muted-foreground">Last sync: {api.lastSync}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge
-                    variant="outline"
-                    className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+            {integrationsList
+              .filter((api) => api.status === "connected")
+              .slice(0, 3)
+              .map((api, i) => {
+                const IconComponent = api.icon
+                return (
+                  <div
+                    key={i}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b last:border-0 last:pb-0"
                   >
-                    <Check className="mr-1 h-3 w-3" />
-                    Healthy
-                  </Badge>
-                  <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                    <Zap className="mr-1 h-3 w-3" />
-                    {api.apiCalls} API calls today
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-6 gap-1 bg-transparent"
-                    onClick={() => handleIntegrationAction("viewing dashboard for", api.name)}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Dashboard
-                  </Button>
-                </div>
-              </div>
-            ))}
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                        <IconComponent className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{api.name}</h3>
+                        <p className="text-sm text-muted-foreground">Last sync: {api.lastSync}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge
+                        variant="outline"
+                        className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                      >
+                        <Check className="mr-1 h-3 w-3" />
+                        Healthy
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                      >
+                        <Zap className="mr-1 h-3 w-3" />
+                        {Math.floor(Math.random() * 100) + 1} API calls today
+                      </Badge>
+                      <Button variant="outline" size="sm" className="h-6 gap-1 bg-transparent">
+                        <ExternalLink className="h-3 w-3" />
+                        Dashboard
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </CardContent>
         <CardFooter>
-          <Button
-            variant="outline"
-            className="w-full bg-transparent"
-            onClick={() => requireAuth("viewing all analytics")}
-          >
+          <Button variant="outline" className="w-full bg-transparent">
             View All Analytics
           </Button>
         </CardFooter>
@@ -464,10 +435,7 @@ export function APIHub() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="integration-type">Integration Type</Label>
-              <Select
-                value={newIntegration.type}
-                onValueChange={(value) => setNewIntegration((prev) => ({ ...prev, type: value }))}
-              >
+              <Select>
                 <SelectTrigger>
                   <SelectValue placeholder="Select integration type" />
                 </SelectTrigger>
@@ -483,20 +451,10 @@ export function APIHub() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="api-key">API Key</Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="Enter your API key"
-                value={newIntegration.apiKey}
-                onChange={(e) => setNewIntegration((prev) => ({ ...prev, apiKey: e.target.value }))}
-              />
+              <Input id="api-key" type="password" placeholder="Enter your API key" />
             </div>
             <div className="flex items-center space-x-2">
-              <Switch
-                id="auto-sync"
-                checked={newIntegration.autoSync}
-                onCheckedChange={(checked) => setNewIntegration((prev) => ({ ...prev, autoSync: checked }))}
-              />
+              <Switch id="auto-sync" />
               <Label htmlFor="auto-sync">Enable automatic synchronization</Label>
             </div>
           </div>
@@ -504,17 +462,24 @@ export function APIHub() {
             <Button variant="outline" onClick={() => setShowAddIntegrationDialog(false)}>
               Cancel
             </Button>
-            <Button
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={handleCreateIntegration}
-            >
-              Connect
-            </Button>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Connect</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Integration Configuration Modal */}
+      <IntegrationConfigModal
+        open={configModalOpen}
+        onOpenChange={setConfigModalOpen}
+        integration={selectedIntegration ? getIntegration(selectedIntegration) : null}
+      />
+
+      {/* GitHub Clone Modal */}
+      <GitHubCloneModal
+        open={githubCloneModalOpen}
+        onOpenChange={setGithubCloneModalOpen}
+        onCloneComplete={handleCloneComplete}
+      />
     </div>
   )
 }
-
-export default APIHub
