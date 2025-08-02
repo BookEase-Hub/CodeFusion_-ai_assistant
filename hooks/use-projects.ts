@@ -2,39 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/auth-context"
+import useProjectsStore, { useProjectsList, useProjectsActions, Project, ProjectStatus } from "@/store/projects-store"
 
-export type ProjectStatus = "synced" | "pending" | "error"
-
-export interface Project {
-  id: string
-  name: string
-  description: string
-  language: string
-  template: string
-  status: ProjectStatus
-  createdAt: string
-  updatedAt:string
-}
-
-// Function to get projects for a user from localStorage
-const getLocalProjects = (userId: string): Project[] => {
-  try {
-    const localData = localStorage.getItem(`codefusion_projects_${userId}`)
-    return localData ? JSON.parse(localData) : []
-  } catch (error) {
-    console.error("Failed to parse projects from localStorage", error)
-    return []
-  }
-}
-
-// Function to save projects for a user to localStorage
-const saveLocalProjects = (userId: string, projects: Project[]) => {
-  try {
-    localStorage.setItem(`codefusion_projects_${userId}`, JSON.stringify(projects))
-  } catch (error) {
-    console.error("Failed to save projects to localStorage", error)
-  }
-}
+// This hook is now a bridge between the component and the Zustand store,
+// and it also handles the cloud sync simulation.
 
 // Simulate a cloud API for storing projects
 const cloudStorage = {
@@ -54,7 +25,9 @@ const cloudStorage = {
 
 export function useProjects() {
   const { user } = useAuth()
-  const [projects, setProjects] = useState<Project[]>([])
+  const projects = useProjectsList()
+  const { addProject, setProjects } = useProjectsActions()
+
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
 
@@ -63,7 +36,9 @@ export function useProjects() {
 
     setIsSyncing(true)
     try {
-      const localProjects = getLocalProjects(user.id)
+      // The local projects are already in the Zustand store, which is persisted.
+      // We just need to sync with the "cloud".
+      const localProjects = projects
       const cloudProjects = await cloudStorage.getProjects(user.id)
 
       // Simple merge strategy: cloud authoritative for existing, local for new
@@ -80,7 +55,6 @@ export function useProjects() {
       const finalProjects = mergedProjects.map(p => ({ ...p, status: 'synced' as ProjectStatus }))
 
       setProjects(finalProjects)
-      saveLocalProjects(user.id, finalProjects)
       await cloudStorage.saveProjects(user.id, finalProjects)
 
     } catch (error) {
@@ -89,19 +63,22 @@ export function useProjects() {
       setIsSyncing(false)
       setIsLoading(false)
     }
-  }, [user])
+  }, [user, projects, setProjects])
 
   useEffect(() => {
     if (user) {
       setIsLoading(true)
+      // The store is already hydrated from localStorage by the persist middleware.
+      // We just need to trigger a sync.
       syncProjects()
     } else {
+      // Clear projects when user logs out
       setProjects([])
       setIsLoading(false)
     }
-  }, [user, syncProjects])
+  }, [user, syncProjects, setProjects])
 
-  const createProject = useCallback(async (newProjectData: Omit<Project, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
+  const createProject = useCallback(async (newProjectData: Omit<Project, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'fileTree'>) => {
     if (!user) {
       throw new Error("User must be logged in to create a project.")
     }
@@ -112,12 +89,22 @@ export function useProjects() {
       status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      fileTree: {
+        id: 'root',
+        name: 'root',
+        type: 'folder',
+        children: [
+          {
+            id: 'readme',
+            name: 'README.md',
+            type: 'file',
+            content: `# ${newProjectData.name}\n\n${newProjectData.description}`
+          }
+        ]
+      }
     }
 
-    // Add to local state immediately for responsive UI
-    const updatedLocalProjects = [newProject, ...projects]
-    setProjects(updatedLocalProjects)
-    saveLocalProjects(user.id, updatedLocalProjects)
+    addProject(newProject)
 
     // Asynchronously sync with the "cloud"
     try {
@@ -126,13 +113,13 @@ export function useProjects() {
     } catch (error) {
         console.error("Failed to sync after creating project", error)
         // Revert status to 'error' if sync fails
-        setProjects(currentProjects =>
-            currentProjects.map(p =>
-                p.id === newProject.id ? { ...p, status: 'error' } : p
-            )
+        const currentProjects = useProjectsStore.getState().projects
+        const updatedProjects = currentProjects.map(p =>
+            p.id === newProject.id ? { ...p, status: 'error' as ProjectStatus } : p
         )
+        setProjects(updatedProjects)
     }
-  }, [user, projects, syncProjects])
+  }, [user, addProject, syncProjects, setProjects])
 
   return { projects, isLoading, isSyncing, createProject }
 }
