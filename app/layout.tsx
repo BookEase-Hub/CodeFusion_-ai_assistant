@@ -3,17 +3,18 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/contexts/auth-context"
-import { AppStateProvider } from "@/contexts/app-state-context"
 import { Toaster } from "@/components/ui/toaster"
-import AppLayout from "@/components/app-layout"
+import { AuthProvider } from "@/contexts/auth-context"
+import { ProjectProvider } from "@/contexts/project-context"
+import { IntegrationProvider } from "@/contexts/integration-context"
+import { AppStateProvider } from "@/contexts/app-state-context"
+import { AuthModal } from "@/components/auth-modal"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "CodeFusion - AI-Powered Development Platform",
-  description: "Your intelligent coding companion for seamless development",
-    generator: 'v0.dev'
+  title: "CodeFusion - Advanced Development Platform",
+  description: "A comprehensive development platform with AI assistance, project management, and API integrations.",
 }
 
 export default function RootLayout({
@@ -26,10 +27,15 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            <AppStateProvider>
-              <AppLayout>{children}</AppLayout>
-              <Toaster />
-            </AppStateProvider>
+            <ProjectProvider>
+              <IntegrationProvider>
+                <AppStateProvider>
+                  {children}
+                  <AuthModal />
+                  <Toaster />
+                </AppStateProvider>
+              </IntegrationProvider>
+            </ProjectProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
