@@ -1,5 +1,12 @@
-import { AIAssistant } from "@/components/ai-assistant"
+"use client";
+
+import { EditorLayout } from "@/components/vscode/EditorLayout";
+import { AppStateProvider } from "@/contexts/app-state-context";
 
 export default function AIAssistPage() {
-  return <AIAssistant />
+  return (
+    <AppStateProvider>
+      <EditorLayout />
+    </AppStateProvider>
+  );
 }
