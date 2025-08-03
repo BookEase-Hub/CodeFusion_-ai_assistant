@@ -32,55 +32,8 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRequireAuth } from "@/hooks/use-require-auth"
+import { useProjects } from "@/contexts/project-context"
 import { useToast } from "@/components/ui/use-toast"
-
-const projects = [
-  {
-    id: "1",
-    name: "E-commerce Platform",
-    description: "A modern e-commerce platform with React and Node.js",
-    language: "TypeScript",
-    stars: 24,
-    lastUpdated: "2 hours ago",
-    progress: 75,
-  },
-  {
-    id: "2",
-    name: "API Gateway",
-    description: "Microservices API gateway with authentication and rate limiting",
-    language: "Go",
-    stars: 18,
-    lastUpdated: "1 day ago",
-    progress: 45,
-  },
-  {
-    id: "3",
-    name: "Mobile App",
-    description: "Cross-platform mobile application for task management",
-    language: "React Native",
-    stars: 32,
-    lastUpdated: "3 days ago",
-    progress: 90,
-  },
-  {
-    id: "4",
-    name: "Data Visualization Dashboard",
-    description: "Interactive dashboard for visualizing complex datasets",
-    language: "JavaScript",
-    stars: 15,
-    lastUpdated: "1 week ago",
-    progress: 60,
-  },
-  {
-    id: "5",
-    name: "Machine Learning Pipeline",
-    description: "Automated ML pipeline for data processing and model training",
-    language: "Python",
-    stars: 42,
-    lastUpdated: "2 weeks ago",
-    progress: 80,
-  },
-]
 
 export function Projects() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -89,11 +42,12 @@ export function Projects() {
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
-    language: "",
+    primaryLanguage: "",
     template: "",
   })
   const { requireAuth } = useRequireAuth()
   const { toast } = useToast()
+  const { projects, createProject } = useProjects()
 
   const filteredProjects = projects.filter(
     (project) =>
@@ -129,8 +83,8 @@ export function Projects() {
     }
   }
 
-  const handleCreateProject = () => {
-    if (!newProject.name || !newProject.description || !newProject.language) {
+  const handleCreateProject = async () => {
+    if (!newProject.name || !newProject.description || !newProject.primaryLanguage) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -140,14 +94,23 @@ export function Projects() {
       return
     }
 
-    toast({
-      title: "Project Created",
-      description: `Successfully created ${newProject.name}.`,
-      duration: 3000,
-    })
-
-    setShowNewProjectDialog(false)
-    setNewProject({ name: "", description: "", language: "", template: "" })
+    try {
+      await createProject(newProject)
+      toast({
+        title: "Project Created",
+        description: `Successfully created ${newProject.name}.`,
+        duration: 3000,
+      })
+      setShowNewProjectDialog(false)
+      setNewProject({ name: "", description: "", primaryLanguage: "", template: "" })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create project. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      })
+    }
   }
 
   return (
@@ -219,29 +182,22 @@ export function Projects() {
                   </CardHeader>
                   <CardContent className="pb-2">
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
                         <div className="flex items-center gap-2">
                           <div className="h-3 w-3 rounded-full bg-primary" />
-                          <span className="text-sm">{project.language}</span>
+                          <span>{project.primaryLanguage}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-accent" />
-                          <span className="text-sm">{project.stars}</span>
+                          <Clock className="h-4 w-4" />
+                          <span>{new Date().toLocaleDateString()}</span>
                         </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{project.progress}%</span>
-                        </div>
-                        <Progress value={project.progress} className="h-2" />
                       </div>
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between border-t pt-4">
                     <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="mr-1 h-3 w-3" />
-                      {project.lastUpdated}
+                      <GitBranch className="mr-1 h-3 w-3" />
+                      {project.template}
                     </div>
                     <Button
                       variant="outline"
@@ -260,154 +216,18 @@ export function Projects() {
         </TabsContent>
 
         <TabsContent value="recent" className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {projects.slice(0, 3).map((project) => (
-              <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{project.name}</CardTitle>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleProjectAction("editing", project.name)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleProjectAction("duplication", project.name)}>
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleProjectAction("archiving", project.name)}>
-                          Archive
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => handleProjectAction("deletion", project.name)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <CardDescription>{project.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="pb-2">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full bg-primary" />
-                        <span className="text-sm">{project.language}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 text-accent" />
-                        <span className="text-sm">{project.stars}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span>{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between border-t pt-4">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Clock className="mr-1 h-3 w-3" />
-                    {project.lastUpdated}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 bg-transparent"
-                    onClick={() => handleProjectAction("opening", project.name)}
-                  >
-                    <Code className="h-3 w-3" />
-                    Open
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <FolderGit2 className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium">No recent projects</h3>
+            <p className="text-muted-foreground mt-2">Projects you&apos;ve worked on recently will appear here.</p>
           </div>
         </TabsContent>
 
         <TabsContent value="starred" className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {projects
-              .filter((p) => p.stars > 20)
-              .map((project) => (
-                <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{project.name}</CardTitle>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleProjectAction("editing", project.name)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleProjectAction("duplication", project.name)}>
-                            Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleProjectAction("archiving", project.name)}>
-                            Archive
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleProjectAction("deletion", project.name)}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <CardDescription>{project.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-3 w-3 rounded-full bg-primary" />
-                          <span className="text-sm">{project.language}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-accent" />
-                          <span className="text-sm">{project.stars}</span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{project.progress}%</span>
-                        </div>
-                        <Progress value={project.progress} className="h-2" />
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-between border-t pt-4">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="mr-1 h-3 w-3" />
-                      {project.lastUpdated}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 bg-transparent"
-                      onClick={() => handleProjectAction("opening", project.name)}
-                    >
-                      <Code className="h-3 w-3" />
-                      Open
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <FolderGit2 className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium">No starred projects</h3>
+            <p className="text-muted-foreground mt-2">Star your favorite projects to find them here.</p>
           </div>
         </TabsContent>
 
@@ -504,8 +324,8 @@ export function Projects() {
             <div className="space-y-2">
               <Label htmlFor="language">Primary Language</Label>
               <Select
-                value={newProject.language}
-                onValueChange={(value) => setNewProject((prev) => ({ ...prev, language: value }))}
+                value={newProject.primaryLanguage}
+                onValueChange={(value) => setNewProject((prev) => ({ ...prev, primaryLanguage: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a language" />
