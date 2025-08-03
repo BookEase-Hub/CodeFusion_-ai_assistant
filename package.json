@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@babel/runtime": "latest",
+    "@codemirror/commands": "^6.8.1",
     "@codemirror/lang-html": "latest",
     "@codemirror/lang-javascript": "latest",
     "@codemirror/lang-json": "latest",
@@ -41,7 +42,7 @@
     "autoprefixer": "^10.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "codemirror": "latest",
+    "codemirror": "^6.0.2",
     "framer-motion": "latest",
     "lucide-react": "^0.454.0",
     "mermaid": "latest",
