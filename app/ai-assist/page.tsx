@@ -1,5 +1,5 @@
-import { AIAssistant } from "@/components/ai-assistant"
+import App from "@/components/code-fusion-app";
 
 export default function AIAssistPage() {
-  return <AIAssistant />
+  return <App />;
 }
