@@ -1,287 +1,155 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import * as React from "react"
+import { useState, useCallback } from "react"
 
-// Types for persistent state
-interface EditorTab {
-  id: string
-  name: string
-  content: string
-  language?: string
-  path?: string
-  isDirty?: boolean
+// Types
+export interface EditorTab {
+  id: string;
+  name: string;
+  path: string;
+  language: string;
+  content: string;
+  isDirty?: boolean;
 }
 
-interface ChatMessage {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  code?: { language: string; value: string }
+export interface FileNode {
+  id:string;
+  name: string;
+  type: "file" | "folder";
+  path: string;
+  children?: FileNode[];
+  isOpen?: boolean;
+  language?: string;
+  content?: string;
+  isDirty?: boolean;
 }
 
-interface ProjectState {
-  searchQuery: string
-  activeTab: string
-  selectedProjects: string[]
+export interface ChatMessage {
+  id: string;
+  content: string;
+  role: "user" | "assistant";
+  timestamp: string;
 }
 
-interface APIHubState {
-  searchQuery: string
-  activeTab: string
-  selectedIntegrations: string[]
+export interface Project {
+  id: string;
+  name: string;
+  files: FileNode[];
+  lastModified: string;
 }
 
-interface SettingsState {
-  activeTab: string
-  unsavedChanges: Record<string, any>
+export interface Workspace {
+  id: string;
+  name: string;
+  project: Project;
+  createdAt: string;
+  syncStatus: "local" | "cloud" | "synced";
 }
 
+// App State Context
 interface AppState {
-  // AI Assistant State
-  aiAssistant: {
-    editorTabs: EditorTab[]
-    activeEditorTab: string | null
-    chatMessages: ChatMessage[]
-    chatInput: string
-    showExplorer: boolean
-    showTerminal: boolean
-    showProblems: boolean
-    activePanel: string | null
-    terminalHeight: number
-  }
-
-  // Projects State
-  projects: ProjectState
-
-  // API Hub State
-  apiHub: APIHubState
-
-  // Settings State
-  settings: SettingsState
-
-  // Dashboard State
-  dashboard: {
-    activeTab: string
-  }
+  tabs: EditorTab[];
+  activeTab: string | null;
+  currentProject: Project | null;
+  currentWorkspaceId: string | null;
+  workspaces: Workspace[];
+  activePanel: "terminal" | "problems" | null;
+  autoSave: boolean;
+  zoomLevel: number;
+  isFindReplaceOpen: boolean;
+  findQuery: string;
+  replaceQuery: string;
+  isCommandPaletteOpen: boolean;
+  commandQuery: string;
+  isSidebarOpen: boolean;
+  sidebarWidth: number;
 }
 
 interface AppStateContextType {
-  state: AppState
-  updateAIAssistant: (updates: Partial<AppState["aiAssistant"]>) => void
-  updateProjects: (updates: Partial<ProjectState>) => void
-  updateAPIHub: (updates: Partial<APIHubState>) => void
-  updateSettings: (updates: Partial<SettingsState>) => void
-  updateDashboard: (updates: Partial<AppState["dashboard"]>) => void
-  addEditorTab: (tab: EditorTab) => void
-  updateEditorTab: (id: string, updates: Partial<EditorTab>) => void
-  removeEditorTab: (id: string) => void
-  addChatMessage: (message: ChatMessage) => void
-  clearChatMessages: () => void
-  persistState: () => void
-  loadState: () => void
+  state: AppState;
+  setTabs: React.Dispatch<React.SetStateAction<EditorTab[]>>;
+  setActiveTab: React.Dispatch<React.SetStateAction<string | null>>;
+  updateProject: React.Dispatch<React.SetStateAction<Project | null>>;
+  setWorkspaces: React.Dispatch<React.SetStateAction<Workspace[]>>;
+  setCurrentWorkspaceId: React.Dispatch<React.SetStateAction<string | null>>;
+  setActivePanel: React.Dispatch<React.SetStateAction<"terminal" | "problems" | null>>;
+  setAutoSave: React.Dispatch<React.SetStateAction<boolean>>;
+  setZoomLevel: React.Dispatch<React.SetStateAction<number>>;
+  setFindReplaceOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setFindQuery: React.Dispatch<React.SetStateAction<string>>;
+  setReplaceQuery: React.Dispatch<React.SetStateAction<string>>;
+  setCommandPaletteOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setCommandQuery: React.Dispatch<React.SetStateAction<string>>;
+  toggleSidebar: () => void;
+  setSidebarWidth: React.Dispatch<React.SetStateAction<number>>;
 }
 
-const defaultState: AppState = {
-  aiAssistant: {
-    editorTabs: [],
-    activeEditorTab: null,
-    chatMessages: [
-      {
-        id: "1",
-        role: "assistant",
-        content:
-          "Hi! I'm your AI coding assistant. I can help you write, debug, and optimize code. What would you like to work on?",
-      },
-    ],
-    chatInput: "",
-    showExplorer: true,
-    showTerminal: false,
-    showProblems: false,
-    activePanel: "terminal",
-    terminalHeight: 200,
-  },
-  projects: {
-    searchQuery: "",
-    activeTab: "all",
-    selectedProjects: [],
-  },
-  apiHub: {
-    searchQuery: "",
-    activeTab: "all",
-    selectedIntegrations: [],
-  },
-  settings: {
-    activeTab: "account",
-    unsavedChanges: {},
-  },
-  dashboard: {
-    activeTab: "overview",
-  },
-}
-
-const AppStateContext = createContext<AppStateContextType | undefined>(undefined)
-
-export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(defaultState)
-
-  // Load state from localStorage on mount
-  useEffect(() => {
-    loadState()
-  }, [])
-
-  // Auto-save state changes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      persistState()
-    }, 1000) // Debounce saves by 1 second
-
-    return () => clearTimeout(timeoutId)
-  }, [state])
-
-  const persistState = () => {
-    try {
-      localStorage.setItem("codefusion_app_state", JSON.stringify(state))
-    } catch (error) {
-      console.error("Failed to persist app state:", error)
-    }
-  }
-
-  const loadState = () => {
-    try {
-      const savedState = localStorage.getItem("codefusion_app_state")
-      if (savedState) {
-        const parsedState = JSON.parse(savedState)
-        setState({ ...defaultState, ...parsedState })
-      }
-    } catch (error) {
-      console.error("Failed to load app state:", error)
-    }
-  }
-
-  const updateAIAssistant = (updates: Partial<AppState["aiAssistant"]>) => {
-    setState((prev) => ({
-      ...prev,
-      aiAssistant: { ...prev.aiAssistant, ...updates },
-    }))
-  }
-
-  const updateProjects = (updates: Partial<ProjectState>) => {
-    setState((prev) => ({
-      ...prev,
-      projects: { ...prev.projects, ...updates },
-    }))
-  }
-
-  const updateAPIHub = (updates: Partial<APIHubState>) => {
-    setState((prev) => ({
-      ...prev,
-      apiHub: { ...prev.apiHub, ...updates },
-    }))
-  }
-
-  const updateSettings = (updates: Partial<SettingsState>) => {
-    setState((prev) => ({
-      ...prev,
-      settings: { ...prev.settings, ...updates },
-    }))
-  }
-
-  const updateDashboard = (updates: Partial<AppState["dashboard"]>) => {
-    setState((prev) => ({
-      ...prev,
-      dashboard: { ...prev.dashboard, ...updates },
-    }))
-  }
-
-  const addEditorTab = (tab: EditorTab) => {
-    setState((prev) => ({
-      ...prev,
-      aiAssistant: {
-        ...prev.aiAssistant,
-        editorTabs: [...prev.aiAssistant.editorTabs, tab],
-        activeEditorTab: tab.id,
-      },
-    }))
-  }
-
-  const updateEditorTab = (id: string, updates: Partial<EditorTab>) => {
-    setState((prev) => ({
-      ...prev,
-      aiAssistant: {
-        ...prev.aiAssistant,
-        editorTabs: prev.aiAssistant.editorTabs.map((tab) => (tab.id === id ? { ...tab, ...updates } : tab)),
-      },
-    }))
-  }
-
-  const removeEditorTab = (id: string) => {
-    setState((prev) => {
-      const newTabs = prev.aiAssistant.editorTabs.filter((tab) => tab.id !== id)
-      const newActiveTab =
-        newTabs.length > 0
-          ? prev.aiAssistant.activeEditorTab === id
-            ? newTabs[newTabs.length - 1].id
-            : prev.aiAssistant.activeEditorTab
-          : null
-
-      return {
-        ...prev,
-        aiAssistant: {
-          ...prev.aiAssistant,
-          editorTabs: newTabs,
-          activeEditorTab: newActiveTab,
-        },
-      }
-    })
-  }
-
-  const addChatMessage = (message: ChatMessage) => {
-    setState((prev) => ({
-      ...prev,
-      aiAssistant: {
-        ...prev.aiAssistant,
-        chatMessages: [...prev.aiAssistant.chatMessages, message],
-      },
-    }))
-  }
-
-  const clearChatMessages = () => {
-    setState((prev) => ({
-      ...prev,
-      aiAssistant: {
-        ...prev.aiAssistant,
-        chatMessages: [defaultState.aiAssistant.chatMessages[0]], // Keep welcome message
-      },
-    }))
-  }
-
-  return (
-    <AppStateContext.Provider
-      value={{
-        state,
-        updateAIAssistant,
-        updateProjects,
-        updateAPIHub,
-        updateSettings,
-        updateDashboard,
-        addEditorTab,
-        updateEditorTab,
-        removeEditorTab,
-        addChatMessage,
-        clearChatMessages,
-        persistState,
-        loadState,
-      }}
-    >
-      {children}
-    </AppStateContext.Provider>
-  )
-}
+const AppStateContext = React.createContext<AppStateContextType | undefined>(undefined);
 
 export function useAppState() {
-  const context = useContext(AppStateContext)
-  if (context === undefined) {
-    throw new Error("useAppState must be used within an AppStateProvider")
+  const context = React.useContext(AppStateContext);
+  if (!context) {
+    throw new Error("useAppState must be used within an AppStateProvider");
   }
-  return context
+  return context;
+}
+
+export function AppStateProvider({ children }: { children: React.ReactNode }) {
+  const [tabs, setTabs] = useState<EditorTab[]>([]);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activePanel, setActivePanel] = useState<"terminal" | "problems" | null>(null);
+  const [autoSave, setAutoSave] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isFindReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [replaceQuery, setReplaceQuery] = useState("");
+  const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(250);
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
+
+  const value: AppStateContextType = {
+    state: {
+      tabs,
+      activeTab,
+      currentProject,
+      currentWorkspaceId,
+      workspaces,
+      activePanel,
+      autoSave,
+      zoomLevel,
+      isFindReplaceOpen,
+      findQuery,
+      replaceQuery,
+      isCommandPaletteOpen,
+      commandQuery,
+      isSidebarOpen,
+      sidebarWidth,
+    },
+    setTabs,
+    setActiveTab,
+    updateProject: setCurrentProject,
+    setWorkspaces,
+    setCurrentWorkspaceId,
+    setActivePanel,
+    setAutoSave,
+    setZoomLevel,
+    setFindReplaceOpen,
+    setFindQuery,
+    setReplaceQuery,
+    setCommandPaletteOpen,
+    setCommandQuery,
+    toggleSidebar,
+    setSidebarWidth,
+  };
+
+  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
