@@ -18,7 +18,7 @@
     "@uiw/react-codemirror": "^4.21.9",
     "classnames": "^2.3.2",
     "highlight.js": "^11.8.0",
-    "lucide-react": "^0.274.0",
+    "lucide-react": "^0.378.0",
     "marked": "^5.1.2",
     "mermaid": "^10.2.4",
     "react": "^18.2.0",
@@ -27,7 +27,27 @@
     "tailwindcss": "^3.3.3",
     "typescript": "^4.9.5",
     "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.7.0"
+    "xterm-addon-fit": "^0.7.0",
+    "next": "^14.2.3",
+    "react-image-crop": "^11.0.5",
+    "codemirror-lang-mermaid": "^0.5.0",
+    "framer-motion": "^11.2.10",
+    "next-themes": "^0.3.0",
+    "@radix-ui/react-alert-dialog": "^1.0.5",
+    "@radix-ui/react-avatar": "^1.0.4",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.3.0",
+    "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-progress": "^1.0.3",
+    "@radix-ui/react-radio-group": "^1.1.3",
+    "react-resizable-panels": "^2.0.19",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-separator": "^1.0.3",
+    "@radix-ui/react-slider": "^1.1.2",
+    "@radix-ui/react-switch": "^1.0.3",
+    "@radix-ui/react-toast": "^1.1.5",
+    "langchain": "^0.1.36"
   },
   "scripts": {
     "dev": "next dev",
@@ -41,6 +61,11 @@
     "@types/node": "24.2.0",
     "@types/react": "^18.2.0",
     "@types/react-copy-to-clipboard": "^5.0.4",
-    "@types/react-dom": "^18.2.0"
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.3",
+    "postcss": "^8.4.38",
+    "tailwindcss-animate": "^1.0.7"
   }
 }

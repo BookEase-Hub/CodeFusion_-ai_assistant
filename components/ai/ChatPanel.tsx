@@ -11,12 +11,12 @@ import CodeMirror from "@uiw/react-codemirror";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
-import { mermaid } from "@codemirror/lang-mermaid";
+import { mermaid as mermaidLanguage } from "codemirror-lang-mermaid";
 import { useToast } from "@/components/ui/use-toast";
 import { useEditorContext } from "@/contexts/EditorContext";
 import { aiService } from "@/lib/ai/agentService";
 import { cn } from "@/lib/utils";
-import * as mermaidLib from "mermaid";
+import mermaid from "mermaid";
 
 interface Message {
   id: string;
@@ -79,7 +79,7 @@ const CodeFusionPanel = ({
 
   // Initialize Mermaid
   useEffect(() => {
-    mermaidLib.initialize({ startOnLoad: true, theme: "dark" });
+    mermaid.initialize({ startOnLoad: true, theme: "dark" });
   }, []);
 
   // Scroll to bottom for chat messages
@@ -162,7 +162,7 @@ const CodeFusionPanel = ({
     const renderDiagram = async () => {
       try {
         if (mermaidRef.current && diagramContent) {
-          const { svg } = await mermaidLib.render("architecture-diagram", diagramContent);
+          const { svg } = await mermaid.render("architecture-diagram", diagramContent);
           mermaidRef.current.innerHTML = svg;
           setDiagramError(null);
         }
@@ -336,7 +336,7 @@ const CodeFusionPanel = ({
                   message.code!.language === "python"
                     ? [python()]
                     : message.code!.language === "mermaid"
-                    ? [mermaid()]
+                    ? [mermaidLanguage()]
                     : [javascript()]
                 }
                 readOnly
