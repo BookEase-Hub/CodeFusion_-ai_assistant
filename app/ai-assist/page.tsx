@@ -1,6 +1,7 @@
 "use client"
 
 import { AppStateProvider, useAppState } from "@/contexts/app-state-context";
+import { EditorProvider } from "@/contexts/EditorContext";
 import CodeFusionApp from "@/components/code-fusion-app";
 import CodeFusionPanel from "@/components/ai/ChatPanel";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -65,7 +66,9 @@ function AiAssistPage() {
 export default function AiAssistPageWrapper() {
   return (
     <AppStateProvider>
-      <AiAssistPage />
+      <EditorProvider>
+        <AiAssistPage />
+      </EditorProvider>
     </AppStateProvider>
   );
 }
