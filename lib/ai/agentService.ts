@@ -2,35 +2,39 @@ import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 import { LLMChain } from "langchain/chains";
 
-const llm = new OpenAI({
-  openAIApiKey: process.env.OPENAI_API_KEY,
-  temperature: 0.9,
-});
+let llm, chain;
 
-const template = `
-You are a helpful AI assistant integrated into a web-based IDE.
-Your task is to assist the user with their coding tasks.
-You can generate code, refactor code, run tests, and more.
-You have access to the user's current file path, content, and file tree.
+if (process.env.OPENAI_API_KEY) {
+  llm = new OpenAI({
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    temperature: 0.9,
+  });
 
-Current file path: {filePath}
-Current file content:
-{content}
+  const template = `
+  You are a helpful AI assistant integrated into a web-based IDE.
+  Your task is to assist the user with their coding tasks.
+  You can generate code, refactor code, run tests, and more.
+  You have access to the user's current file path, content, and file tree.
 
-File tree:
-{tree}
+  Current file path: {filePath}
+  Current file content:
+  {content}
 
-User query: {query}
+  File tree:
+  {tree}
 
-Response:
-`;
+  User query: {query}
 
-const prompt = new PromptTemplate({
-  template,
-  inputVariables: ["filePath", "content", "tree", "query"],
-});
+  Response:
+  `;
 
-const chain = new LLMChain({ llm, prompt });
+  const prompt = new PromptTemplate({
+    template,
+    inputVariables: ["filePath", "content", "tree", "query"],
+  });
+
+  chain = new LLMChain({ llm, prompt });
+}
 
 export const aiService = {
   runTask: async (
@@ -39,6 +43,9 @@ export const aiService = {
     content?: string,
     tree?: string
   ) => {
+    if (!chain) {
+      return { output: "AI service is not configured. Please set the OPENAI_API_KEY environment variable." };
+    }
     const response = await chain.call({
       query,
       filePath: filePath || "N/A",
