@@ -36,6 +36,8 @@ export function CodeEditor({
         return [html()]
       case "python":
         return [python()]
+      case "css":
+        return [require("@codemirror/lang-css").css()]
       default:
         return []
     }
