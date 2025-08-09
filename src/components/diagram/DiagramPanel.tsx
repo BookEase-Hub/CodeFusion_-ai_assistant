@@ -21,8 +21,8 @@ export function DiagramPanel({ onUpdateDiagram }: DiagramPanelProps) {
   const mermaidRef = React.useRef<HTMLDivElement>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const activeDiagram = state.tabs.find(
-    (tab) => tab.id === state.activeTab && tab.language === 'mermaid'
+  const activeDiagram = state.aiAssistant.editorTabs.find(
+    (tab) => tab.id === state.aiAssistant.activeEditorTab && tab.language === 'mermaid'
   );
 
   React.useEffect(() => {
@@ -33,12 +33,10 @@ export function DiagramPanel({ onUpdateDiagram }: DiagramPanelProps) {
     if (activeDiagram) {
       setDiagramContent(activeDiagram.content);
     } else {
-      if (state.fileTree.length > 0) {
-        const projectStructure = generateMermaidFromTree(state.fileTree);
-        setDiagramContent(projectStructure);
-      }
+      // Fallback content if no diagram is active
+      setDiagramContent('graph TD; A[Start] --> B{Is it working?}; B -- Yes --> C[Great!]; B -- No --> D[Check console];');
     }
-  }, [state.activeTab, state.tabs, state.fileTree, activeDiagram]);
+  }, [state.aiAssistant.activeEditorTab, state.aiAssistant.editorTabs, activeDiagram]);
 
   React.useEffect(() => {
     const renderDiagram = async () => {
@@ -90,20 +88,17 @@ export function DiagramPanel({ onUpdateDiagram }: DiagramPanelProps) {
   };
 
   const handleUpdateDiagram = () => {
-    if(state.fileTree.length > 0) {
-        const projectStructure = generateMermaidFromTree(state.fileTree);
-        setDiagramContent(projectStructure);
-        if (activeDiagram?.path) {
-            onUpdateDiagram(activeDiagram.path, projectStructure);
-        }
-    }
+    // This function is now a placeholder as fileTree is not available.
+    // In a real implementation, you might fetch project structure from a server
+    // or have another way to access it.
+    console.log("Updating diagram based on current project structure is not implemented.");
   };
 
   return (
     <div className="flex flex-col h-full bg-[#252526] text-gray-300">
       <div className="p-2 font-semibold border-b border-[#3c3c3c] flex items-center justify-between">
         <span>ARCHITECTURE DIAGRAM</span>
-        <Toolbar {...{onZoomIn, onZoomOut, onResetView, onDownload, onEditDiagram, onUpdateDiagram}} />
+        <Toolbar onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onResetView={handleResetView} onDownload={handleDownload} onEditDiagram={handleEditDiagram} onUpdateDiagram={handleUpdateDiagram} />
       </div>
       <ScrollArea className="flex-1">
         <div

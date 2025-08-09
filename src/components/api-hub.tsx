@@ -280,13 +280,8 @@ export function APIHub() {
                               size="sm"
                               className="gap-1 bg-transparent"
                               onClick={() => handleSync(integration.id)}
-                              disabled={integration.status === "connecting"}
                             >
-                              {integration.status === "connecting" ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3 w-3" />
-                              )}
+                              <RefreshCw className="h-3 w-3" />
                               Sync
                             </Button>
 
@@ -471,7 +466,7 @@ export function APIHub() {
       <IntegrationConfigModal
         open={configModalOpen}
         onOpenChange={setConfigModalOpen}
-        integration={selectedIntegration ? getIntegration(selectedIntegration) : null}
+        integration={selectedIntegration ? getIntegration(selectedIntegration) ?? null : null}
       />
 
       {/* GitHub Clone Modal */}

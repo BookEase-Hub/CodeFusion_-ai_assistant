@@ -19,11 +19,10 @@ export function generateAIResponse(
   context: {
     activeTab: string | null;
     tabs: EditorTab[];
-    fileTree: FileNode[];
   }
 ): Message {
   const lowerInput = input.toLowerCase();
-  const { activeTab, tabs, fileTree } = context;
+  const { activeTab, tabs } = context;
   const currentTab = tabs.find((tab) => tab.id === activeTab);
 
   if (lowerInput.includes('function') || lowerInput.includes('create') || lowerInput.includes('write')) {
