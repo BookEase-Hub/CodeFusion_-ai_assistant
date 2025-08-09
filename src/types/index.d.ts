@@ -17,8 +17,8 @@ export interface EditorTab {
   id: string;
   name: string;
   content: string;
-  language: string;
-  path: string;
+  language?: string;
+  path?: string;
   isDirty?: boolean;
   version?: number;
   isLocked?: boolean;

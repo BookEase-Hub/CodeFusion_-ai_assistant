@@ -29,6 +29,10 @@ interface AuthContextProps {
   updateAvatar: (avatar: string) => Promise<void>
   updateSubscription: (plan: "free" | "premium") => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  authModalOpen: boolean
+  setAuthModalOpen: (open: boolean) => void
+  authReason: string
+  setAuthReason: (reason: string) => void
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined)
@@ -40,6 +44,8 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authReason, setAuthReason] = useState("You need to be logged in to access this feature.")
   const router = useRouter()
 
   useEffect(() => {
@@ -264,6 +270,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateAvatar,
     updateSubscription,
     resetPassword,
+    authModalOpen,
+    setAuthModalOpen,
+    authReason,
+    setAuthReason,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

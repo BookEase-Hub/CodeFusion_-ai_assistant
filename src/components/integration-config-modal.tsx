@@ -393,7 +393,7 @@ export function IntegrationConfigModal({ open, onOpenChange, integration }: Inte
             <div>
               <Label htmlFor="serviceKey">Service Role Key (Optional)</Label>
               <div className="relative">
-                <Textarea
+                <Input
                   id="serviceKey"
                   type={showSecrets.serviceKey ? "text" : "password"}
                   value={config.serviceKey || ""}

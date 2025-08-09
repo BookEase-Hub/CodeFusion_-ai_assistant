@@ -14,8 +14,13 @@ import { cn } from '@/lib/utils';
 
 
 export function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, language?: string) => void; }) {
-  const { state, dispatch, addChatMessage } = useAppState();
-  const { chatMessages, chatInput, tabs, activeTab, fileTree } = state;
+  const { state, updateAIAssistant, addChatMessage } = useAppState();
+  const {
+    chatMessages,
+    chatInput,
+    editorTabs: tabs,
+    activeEditorTab: activeTab,
+  } = state.aiAssistant
 
   const handleSend = () => {
     if (!chatInput.trim()) return;
@@ -23,10 +28,10 @@ export function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, langu
     const userMessage = { id: `msg-${Date.now()}`, role: 'user' as const, content: chatInput };
     addChatMessage(userMessage);
 
-    const aiResponse = generateAIResponse(chatInput, { tabs, activeTab, fileTree });
+    const aiResponse = generateAIResponse(chatInput, { tabs, activeTab });
     addChatMessage(aiResponse);
 
-    dispatch({ type: 'SET_CHAT_INPUT', payload: '' });
+    updateAIAssistant({ chatInput: '' });
   };
 
   return (
@@ -68,7 +73,7 @@ export function ChatPanel({ onInsertCode }: { onInsertCode: (code: string, langu
       <div className="p-2 border-t border-[#3c3c3c] flex items-center gap-2">
         <Input
           value={chatInput}
-          onChange={(e) => dispatch({ type: 'SET_CHAT_INPUT', payload: e.target.value })}
+          onChange={(e) => updateAIAssistant({ chatInput: e.target.value })}
           placeholder="Ask AI Assistant..."
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           className="bg-gray-800 border-gray-600"
